@@ -1,0 +1,43 @@
+name: Fork Blacksmith checks
+
+on:
+  pull_request:
+    branches: [fork/release-v15]
+  push:
+    branches: [fork/release-v15]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  provider:
+    name: Exact-head provider checks
+    if: >-
+      github.repository == 'ioplane/terraform-provider-rancher2' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the exact source head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 https://github.com/actions/checkout
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify source and run isolated checks
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          SCAN_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CI_EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]] || { echo '::error::invalid expected head'; exit 1; }
+          [[ "$(git rev-parse HEAD)" == "$EXPECTED_HEAD" ]] || { echo '::error::checkout differs from source head'; exit 1; }
+          bash .github/scripts/fork-check.sh

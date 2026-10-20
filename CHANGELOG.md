@@ -5,6 +5,10 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Add isolated exact-head Blacksmith checks for the fork release-v15 line; quarantine inherited release, cloud acceptance, notification and privileged workflows before enabling branch CI. Cloud acceptance remains a separate gate.
+
 ### Changed
 
 - Migrate the provider runtime to Terraform Plugin SDK v2.40.1 with protocol 5 serving; protocol 4 is no longer served. Existing deprecation messages are exposed in the schema, missing required fields use structured SDK diagnostics, and computed-only outputs no longer declare configurable-only MaxItems metadata.
