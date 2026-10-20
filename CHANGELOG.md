@@ -1,3 +1,14 @@
+# Changelog
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Fixed
+
+- Preserve the machine config V2 ID in Terraform state and timeout diagnostics when creation readiness polling times out.
+
 ## v4.1.0 (March 6, 2024)
 
 FEATURES:
