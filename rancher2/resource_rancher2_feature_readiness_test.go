@@ -117,7 +117,7 @@ func TestFeatureUpdateRecoversAfterReadinessFailures(t *testing.T) {
 			if state := d.State(); state == nil || state.ID != featureID {
 				t.Errorf("Update state = %#v, want state ID %s", state, featureID)
 			}
-			if labels := d.Get("labels").(map[string]interface{}); labels["fixture"] != "refreshed" {
+			if labels, ok := d.Get("labels").(map[string]interface{}); !ok || labels["fixture"] != "refreshed" {
 				t.Errorf("final Read labels = %v, want fixture=refreshed", labels)
 			}
 		})
