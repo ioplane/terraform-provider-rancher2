@@ -11,6 +11,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Use the pinned Terraform Plugin SDK helper/retry package directly while preserving existing retry and resource lifecycle contracts.
 - Migrate the provider runtime to Terraform Plugin SDK v2.40.1 with protocol 5 serving; protocol 4 is no longer served. Existing deprecation messages are exposed in the schema, missing required fields use structured SDK diagnostics, and computed-only outputs no longer declare configurable-only MaxItems metadata.
 
 ### Fixed

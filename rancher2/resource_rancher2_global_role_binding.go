@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
@@ -63,7 +63,7 @@ func resourceRancher2GlobalRoleBindingCreate(d *schema.ResourceData, meta interf
 
 	d.SetId(newGlobalRole.ID)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"active"},
 		Refresh:    globalRoleBindingStateRefreshFunc(client, newGlobalRole.ID),
@@ -87,7 +87,7 @@ func resourceRancher2GlobalRoleBindingRead(d *schema.ResourceData, meta interfac
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		globalRole, err := client.GlobalRoleBinding.ByID(d.Id())
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -95,11 +95,11 @@ func resourceRancher2GlobalRoleBindingRead(d *schema.ResourceData, meta interfac
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = flattenGlobalRoleBinding(d, globalRole); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -128,7 +128,7 @@ func resourceRancher2GlobalRoleBindingUpdate(d *schema.ResourceData, meta interf
 		return err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"active"},
 		Refresh:    globalRoleBindingStateRefreshFunc(client, newGlobalRole.ID),
@@ -170,7 +170,7 @@ func resourceRancher2GlobalRoleBindingDelete(d *schema.ResourceData, meta interf
 
 	log.Printf("[DEBUG] Waiting for global role binding (%s) to be removed", id)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"removed"},
 		Refresh:    globalRoleBindingStateRefreshFunc(client, id),
@@ -190,7 +190,7 @@ func resourceRancher2GlobalRoleBindingDelete(d *schema.ResourceData, meta interf
 }
 
 // globalRoleBindingStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher Global Role Binding.
-func globalRoleBindingStateRefreshFunc(client *managementClient.Client, globalRoleID string) resource.StateRefreshFunc {
+func globalRoleBindingStateRefreshFunc(client *managementClient.Client, globalRoleID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := client.GlobalRoleBinding.ByID(globalRoleID)
 		if err != nil {

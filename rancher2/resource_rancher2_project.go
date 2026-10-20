@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
@@ -63,7 +63,7 @@ func resourceRancher2ProjectCreate(d *schema.ResourceData, meta interface{}) err
 	}
 	d.SetId(newProject.ID)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"initializing", "configuring", "active"},
 		Target:     []string{"active"},
 		Refresh:    projectStateRefreshFunc(client, newProject.ID),
@@ -87,7 +87,7 @@ func resourceRancher2ProjectRead(d *schema.ResourceData, meta interface{}) error
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		project, err := client.Project.ByID(d.Id())
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -95,11 +95,11 @@ func resourceRancher2ProjectRead(d *schema.ResourceData, meta interface{}) error
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = flattenProject(d, project); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -125,7 +125,7 @@ func resourceRancher2ProjectUpdate(d *schema.ResourceData, meta interface{}) err
 		return err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"active"},
 		Refresh:    projectStateRefreshFunc(client, newProject.ID),
@@ -167,7 +167,7 @@ func resourceRancher2ProjectDelete(d *schema.ResourceData, meta interface{}) err
 
 	log.Printf("[DEBUG] Waiting for project (%s) to be removed", id)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"removing"},
 		Target:     []string{"removed"},
 		Refresh:    projectStateRefreshFunc(client, id),
@@ -187,7 +187,7 @@ func resourceRancher2ProjectDelete(d *schema.ResourceData, meta interface{}) err
 }
 
 // projectStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher Project.
-func projectStateRefreshFunc(client *managementClient.Client, projectID string) resource.StateRefreshFunc {
+func projectStateRefreshFunc(client *managementClient.Client, projectID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := client.Project.ByID(projectID)
 		if err != nil {

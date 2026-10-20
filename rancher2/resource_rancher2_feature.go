@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -80,7 +80,7 @@ func resourceRancher2FeatureUpdate(d *schema.ResourceData, meta interface{}) err
 		}
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active", "rebooting"},
 		Target:     []string{"active"},
 		Refresh:    featureStateRefreshFunc(meta, d.Id()),
@@ -105,7 +105,7 @@ func resourceRancher2FeatureDelete(d *schema.ResourceData, meta interface{}) err
 }
 
 // featureStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher Project.
-func featureStateRefreshFunc(meta interface{}, featureID string) resource.StateRefreshFunc {
+func featureStateRefreshFunc(meta interface{}, featureID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		err := meta.(*Config).isRancherReady()
 		if err != nil {

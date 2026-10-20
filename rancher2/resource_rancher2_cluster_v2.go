@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	norman "github.com/rancher/norman/types"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
@@ -190,7 +190,7 @@ func resourceRancher2ClusterV2Delete(d *schema.ResourceData, meta interface{}) e
 	if err != nil {
 		return err
 	}
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"removed"},
 		Refresh:    clusterV2StateRefreshFunc(meta, cluster.ID),
@@ -210,7 +210,7 @@ func resourceRancher2ClusterV2Delete(d *schema.ResourceData, meta interface{}) e
 		if err != nil {
 			return err
 		}
-		stateConf = &resource.StateChangeConf{
+		stateConf = &retry.StateChangeConf{
 			Pending:    []string{"removing"},
 			Target:     []string{"removed"},
 			Refresh:    clusterStateRefreshFunc(client, v1ClusterName),
@@ -229,7 +229,7 @@ func resourceRancher2ClusterV2Delete(d *schema.ResourceData, meta interface{}) e
 }
 
 // clusterV2StateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher Cluster v2.
-func clusterV2StateRefreshFunc(meta interface{}, objID string) resource.StateRefreshFunc {
+func clusterV2StateRefreshFunc(meta interface{}, objID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := getClusterV2ByID(meta.(*Config), objID)
 		if err != nil {

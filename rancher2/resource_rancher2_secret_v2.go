@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/customdiff"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/rancher/norman/types"
 )
@@ -48,7 +48,7 @@ func resourceRancher2SecretV2Create(d *schema.ResourceData, meta interface{}) er
 		return err
 	}
 	d.SetId(clusterID + secretV2ClusterIDsep + newSecret.ID)
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"active"},
 		Refresh:    secretV2StateRefreshFunc(meta, clusterID, newSecret.ID),
@@ -67,7 +67,7 @@ func resourceRancher2SecretV2Read(d *schema.ResourceData, meta interface{}) erro
 	clusterID, rancherID := splitID(d.Id())
 	log.Printf("[INFO] Refreshing Secret V2 %s at Cluster ID %s", rancherID, clusterID)
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		secret, err := getSecretV2ByID(meta.(*Config), clusterID, rancherID)
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -75,11 +75,11 @@ func resourceRancher2SecretV2Read(d *schema.ResourceData, meta interface{}) erro
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = flattenSecretV2(d, secret); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -96,7 +96,7 @@ func resourceRancher2SecretV2Update(d *schema.ResourceData, meta interface{}) er
 		return err
 	}
 	d.SetId(clusterID + secretV2ClusterIDsep + newSecret.ID)
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"active"},
 		Refresh:    secretV2StateRefreshFunc(meta, clusterID, newSecret.ID),
@@ -128,7 +128,7 @@ func resourceRancher2SecretV2Delete(d *schema.ResourceData, meta interface{}) er
 	if err != nil {
 		return err
 	}
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"removed"},
 		Refresh:    secretV2StateRefreshFunc(meta, clusterID, secret.ID),
@@ -145,7 +145,7 @@ func resourceRancher2SecretV2Delete(d *schema.ResourceData, meta interface{}) er
 }
 
 // secretV2StateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher Secret v2.
-func secretV2StateRefreshFunc(meta interface{}, clusterID, secretID string) resource.StateRefreshFunc {
+func secretV2StateRefreshFunc(meta interface{}, clusterID, secretID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := getSecretV2ByID(meta.(*Config), clusterID, secretID)
 		if err != nil {

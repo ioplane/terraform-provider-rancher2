@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -70,7 +70,7 @@ func resourceRancher2ClusterSyncCreate(d *schema.ResourceData, meta interface{})
 func resourceRancher2ClusterSyncRead(d *schema.ResourceData, meta interface{}) error {
 	clusterID := d.Get("cluster_id").(string)
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		active, clus, err := meta.(*Config).isClusterActive(clusterID)
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -78,25 +78,25 @@ func resourceRancher2ClusterSyncRead(d *schema.ResourceData, meta interface{}) e
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if active {
 			defaultProjectID, systemProjectID, err := meta.(*Config).GetClusterSpecialProjectsID(clusterID)
 			if err != nil {
-				return resource.NonRetryableError(err)
+				return retry.NonRetryableError(err)
 			}
 			d.Set("default_project_id", defaultProjectID)
 			d.Set("system_project_id", systemProjectID)
 
 			isRancher26, err := meta.(*Config).IsRancherVersionGreaterThanOrEqual("2.6.0")
 			if err != nil {
-				return resource.NonRetryableError(err)
+				return retry.NonRetryableError(err)
 			}
 			if isRancher26 && clus.LocalClusterAuthEndpoint != nil && clus.LocalClusterAuthEndpoint.Enabled {
 				connected, _, err := meta.(*Config).isClusterConnected(clusterID)
 				if err != nil {
-					return resource.NonRetryableError(err)
+					return retry.NonRetryableError(err)
 				}
 				if !connected {
 					d.Set("synced", false)
@@ -105,19 +105,19 @@ func resourceRancher2ClusterSyncRead(d *schema.ResourceData, meta interface{}) e
 			}
 			kubeConfig, err := getClusterKubeconfig(meta.(*Config), clusterID, d.Get("kube_config").(string))
 			if err != nil {
-				return resource.NonRetryableError(err)
+				return retry.NonRetryableError(err)
 			}
 			d.Set("kube_config", kubeConfig.Config)
 			nodes, err := meta.(*Config).GetClusterNodes(clusterID)
 			if err != nil {
-				return resource.NonRetryableError(err)
+				return retry.NonRetryableError(err)
 			}
 			d.Set("nodes", flattenClusterNodes(nodes))
 
 			if d.Get("wait_catalogs").(bool) {
 				_, err := waitAllCatalogV2Downloaded(meta.(*Config), clusterID)
 				if err != nil {
-					return resource.NonRetryableError(err)
+					return retry.NonRetryableError(err)
 				}
 			}
 		}

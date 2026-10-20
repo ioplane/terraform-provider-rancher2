@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	norman "github.com/rancher/norman/types"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
@@ -65,7 +65,7 @@ func resourceRancher2CloudCredentialCreate(d *schema.ResourceData, meta interfac
 
 	d.SetId(newCloudCredential.ID)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"active"},
 		Refresh:    cloudCredentialStateRefreshFunc(client, newCloudCredential.ID),
@@ -88,7 +88,7 @@ func resourceRancher2CloudCredentialRead(d *schema.ResourceData, meta interface{
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		cloudCredential := &CloudCredential{}
 		err = client.APIBaseClient.ByID(managementClient.CloudCredentialType, d.Id(), cloudCredential)
 		if err != nil {
@@ -97,11 +97,11 @@ func resourceRancher2CloudCredentialRead(d *schema.ResourceData, meta interface{
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = flattenCloudCredential(d, cloudCredential); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -166,7 +166,7 @@ func resourceRancher2CloudCredentialUpdate(d *schema.ResourceData, meta interfac
 		return err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"active"},
 		Refresh:    cloudCredentialStateRefreshFunc(client, newCloudCredential.ID),
@@ -209,7 +209,7 @@ func resourceRancher2CloudCredentialDelete(d *schema.ResourceData, meta interfac
 
 	log.Printf("[DEBUG] Waiting for cloud credential (%s) to be removed", id)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"removed"},
 		Refresh:    cloudCredentialStateRefreshFunc(client, id),
@@ -228,7 +228,7 @@ func resourceRancher2CloudCredentialDelete(d *schema.ResourceData, meta interfac
 }
 
 // cloudCredentialStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher CloudCredential.
-func cloudCredentialStateRefreshFunc(client *managementClient.Client, credentialID string) resource.StateRefreshFunc {
+func cloudCredentialStateRefreshFunc(client *managementClient.Client, credentialID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj := &CloudCredential{}
 		err := client.APIBaseClient.ByID(managementClient.CloudCredentialType, credentialID, obj)

@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	clusterClient "github.com/rancher/rancher/pkg/client/generated/cluster/v3"
 )
@@ -66,7 +66,7 @@ func resourceRancher2NamespaceCreate(d *schema.ResourceData, meta interface{}) e
 
 	d.SetId(newNs.ID)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"activating", "forbidden"},
 		Target:     []string{"active"},
 		Refresh:    namespaceStateRefreshFunc(client, newNs.ID),
@@ -88,7 +88,7 @@ func resourceRancher2NamespaceRead(d *schema.ResourceData, meta interface{}) err
 
 	log.Printf("[INFO] Refreshing Namespace ID %s", d.Id())
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		_, _, err := meta.(*Config).isClusterActive(clusterID)
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -96,12 +96,12 @@ func resourceRancher2NamespaceRead(d *schema.ResourceData, meta interface{}) err
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		client, err := meta.(*Config).ClusterClient(clusterID)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		ns, err := client.Namespace.ByID(d.Id())
@@ -111,11 +111,11 @@ func resourceRancher2NamespaceRead(d *schema.ResourceData, meta interface{}) err
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = flattenNamespace(d, ns); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -166,7 +166,7 @@ func resourceRancher2NamespaceUpdate(d *schema.ResourceData, meta interface{}) e
 		return err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"active"},
 		Refresh:    namespaceStateRefreshFunc(client, newNs.ID),
@@ -215,7 +215,7 @@ func resourceRancher2NamespaceDelete(d *schema.ResourceData, meta interface{}) e
 
 	log.Printf("[DEBUG] Waiting for namespace (%s) to be removed", id)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"removing"},
 		Target:     []string{"removed", "forbidden"},
 		Refresh:    namespaceStateRefreshFunc(client, id),
@@ -235,7 +235,7 @@ func resourceRancher2NamespaceDelete(d *schema.ResourceData, meta interface{}) e
 }
 
 // namespaceStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher Namespace.
-func namespaceStateRefreshFunc(client *clusterClient.Client, nsID string) resource.StateRefreshFunc {
+func namespaceStateRefreshFunc(client *clusterClient.Client, nsID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := client.Namespace.ByID(nsID)
 		if err != nil {

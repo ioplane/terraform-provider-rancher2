@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/rancher/norman/types"
 )
@@ -58,7 +58,7 @@ func resourceRancher2StorageClassV2Create(d *schema.ResourceData, meta interface
 		return err
 	}
 	d.SetId(clusterID + storageClassV2ClusterIDsep + newStorageClass.ID)
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"active"},
 		Refresh:    storageClassV2StateRefreshFunc(meta, clusterID, newStorageClass.ID),
@@ -77,7 +77,7 @@ func resourceRancher2StorageClassV2Read(d *schema.ResourceData, meta interface{}
 	clusterID, rancherID := splitID(d.Id())
 	log.Printf("[INFO] Refreshing StorageClass V2 %s at Cluster ID %s", rancherID, clusterID)
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		storageClass, err := getStorageClassV2ByID(meta.(*Config), clusterID, rancherID)
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -85,10 +85,10 @@ func resourceRancher2StorageClassV2Read(d *schema.ResourceData, meta interface{}
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 		if err = flattenStorageClassV2(d, storageClass); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -105,7 +105,7 @@ func resourceRancher2StorageClassV2Update(d *schema.ResourceData, meta interface
 		return err
 	}
 	d.SetId(clusterID + storageClassV2ClusterIDsep + newStorageClass.ID)
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"active"},
 		Refresh:    storageClassV2StateRefreshFunc(meta, clusterID, newStorageClass.ID),
@@ -137,7 +137,7 @@ func resourceRancher2StorageClassV2Delete(d *schema.ResourceData, meta interface
 	if err != nil {
 		return err
 	}
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"removed"},
 		Refresh:    storageClassV2StateRefreshFunc(meta, clusterID, storageClass.ID),
@@ -154,7 +154,7 @@ func resourceRancher2StorageClassV2Delete(d *schema.ResourceData, meta interface
 }
 
 // storageClassV2StateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher StorageClass v2.
-func storageClassV2StateRefreshFunc(meta interface{}, clusterID, storageClassID string) resource.StateRefreshFunc {
+func storageClassV2StateRefreshFunc(meta interface{}, clusterID, storageClassID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := getStorageClassV2ByID(meta.(*Config), clusterID, storageClassID)
 		if err != nil {

@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 	corev1 "k8s.io/api/core/v1"
@@ -102,7 +102,7 @@ func resourceRancher2OIDCClientCreate(d *schema.ResourceData, meta any) error {
 
 	d.SetId(createdClient.ID)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"pending"},
 		Target:     []string{"secret created"},
 		Refresh:    oidcClientStateRefreshFunc(client, createdClient.ID),
@@ -118,7 +118,7 @@ func resourceRancher2OIDCClientCreate(d *schema.ResourceData, meta any) error {
 	return resourceRancher2OIDCClientRead(d, meta)
 }
 
-func oidcClientStateRefreshFunc(client *managementClient.Client, clientID string) resource.StateRefreshFunc {
+func oidcClientStateRefreshFunc(client *managementClient.Client, clientID string) retry.StateRefreshFunc {
 	return func() (any, string, error) {
 		oidcClient, err := client.OIDCClient.ByID(clientID)
 		if err != nil {
@@ -191,7 +191,7 @@ func resourceRancher2OIDCClientUpdate(d *schema.ResourceData, meta any) error {
 		return fmt.Errorf("updating OIDC Client %s: %w", d.Id(), err)
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"pending"},
 		Target:     []string{"secret created"},
 		Refresh:    oidcClientStateRefreshFunc(client, oidcClient.ID),

@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
@@ -55,7 +55,7 @@ func resourceRancher2SettingCreate(d *schema.ResourceData, meta interface{}) err
 
 	d.SetId(newSetting.ID)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"active"},
 		Refresh:    settingStateRefreshFunc(client, newSetting.ID),
@@ -122,7 +122,7 @@ func resourceRancher2SettingUpdate(d *schema.ResourceData, meta interface{}) err
 		return err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"active"},
 		Refresh:    settingStateRefreshFunc(client, newSetting.ID),
@@ -166,7 +166,7 @@ func resourceRancher2SettingDelete(d *schema.ResourceData, meta interface{}) err
 
 		log.Printf("[DEBUG] Waiting for setting (%s) to be removed", id)
 
-		stateConf := &resource.StateChangeConf{
+		stateConf := &retry.StateChangeConf{
 			Pending:    []string{"active"},
 			Target:     []string{"removed"},
 			Refresh:    settingStateRefreshFunc(client, id),
@@ -198,7 +198,7 @@ func resourceRancher2SettingDelete(d *schema.ResourceData, meta interface{}) err
 }
 
 // settingStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher Project.
-func settingStateRefreshFunc(client *managementClient.Client, settingID string) resource.StateRefreshFunc {
+func settingStateRefreshFunc(client *managementClient.Client, settingID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := client.Setting.ByID(settingID)
 		if err != nil {

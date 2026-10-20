@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
@@ -45,7 +45,7 @@ func resourceRancher2NodeDriverCreate(d *schema.ResourceData, meta interface{}) 
 
 	d.SetId(newNodeDriver.ID)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"downloading", "activating"},
 		Target:     []string{"active", "inactive"},
 		Refresh:    nodeDriverStateRefreshFunc(client, newNodeDriver.ID),
@@ -68,7 +68,7 @@ func resourceRancher2NodeDriverRead(d *schema.ResourceData, meta interface{}) er
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		nodeDriver, err := client.NodeDriver.ByID(d.Id())
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -76,11 +76,11 @@ func resourceRancher2NodeDriverRead(d *schema.ResourceData, meta interface{}) er
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = flattenNodeDriver(d, nodeDriver); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -118,7 +118,7 @@ func resourceRancher2NodeDriverUpdate(d *schema.ResourceData, meta interface{}) 
 		return err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active", "inactive", "downloading", "activating", "deactivating"},
 		Target:     []string{"active", "inactive"},
 		Refresh:    nodeDriverStateRefreshFunc(client, newNodeDriver.ID),
@@ -161,7 +161,7 @@ func resourceRancher2NodeDriverDelete(d *schema.ResourceData, meta interface{}) 
 
 		log.Printf("[DEBUG] Waiting for node driver (%s) to be removed", id)
 
-		stateConf := &resource.StateChangeConf{
+		stateConf := &retry.StateChangeConf{
 			Pending:    []string{"removing"},
 			Target:     []string{"removed"},
 			Refresh:    nodeDriverStateRefreshFunc(client, id),
@@ -182,7 +182,7 @@ func resourceRancher2NodeDriverDelete(d *schema.ResourceData, meta interface{}) 
 }
 
 // nodeDriverStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher NodeDriver.
-func nodeDriverStateRefreshFunc(client *managementClient.Client, nodeDriverID string) resource.StateRefreshFunc {
+func nodeDriverStateRefreshFunc(client *managementClient.Client, nodeDriverID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := client.NodeDriver.ByID(nodeDriverID)
 		if err != nil {

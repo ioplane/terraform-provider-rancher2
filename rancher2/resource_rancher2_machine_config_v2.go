@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	norman "github.com/rancher/norman/types"
 )
@@ -99,7 +99,7 @@ func resourceRancher2MachineConfigV2Update(d *schema.ResourceData, meta interfac
 	}
 	d.SetId(newObj.ID)
 	flattenMachineConfigV2(d, newObj)
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"active"},
 		Refresh:    machineConfigV2StateRefreshFunc(meta, newObj.ID, newObj.TypeMeta.Kind),
@@ -131,7 +131,7 @@ func resourceRancher2MachineConfigV2Delete(d *schema.ResourceData, meta interfac
 	if err != nil {
 		return err
 	}
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"removed"},
 		Refresh:    machineConfigV2StateRefreshFunc(meta, obj.ID, obj.TypeMeta.Kind),
@@ -148,7 +148,7 @@ func resourceRancher2MachineConfigV2Delete(d *schema.ResourceData, meta interfac
 }
 
 // machineConfigV2StateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher Machine Config v2.
-func machineConfigV2StateRefreshFunc(meta interface{}, objID, kind string) resource.StateRefreshFunc {
+func machineConfigV2StateRefreshFunc(meta interface{}, objID, kind string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := getMachineConfigV2ByID(meta.(*Config), objID, kind)
 		if err != nil {

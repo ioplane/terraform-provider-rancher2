@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
@@ -46,7 +46,7 @@ func resourceRancher2UserCreate(d *schema.ResourceData, meta interface{}) error 
 
 	d.SetId(newUser.ID)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"active"},
 		Refresh:    userStateRefreshFunc(client, newUser.ID),
@@ -71,7 +71,7 @@ func resourceRancher2UserRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		user, err := client.User.ByID(d.Id())
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -79,11 +79,11 @@ func resourceRancher2UserRead(d *schema.ResourceData, meta interface{}) error {
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = flattenUser(d, user); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -121,7 +121,7 @@ func resourceRancher2UserUpdate(d *schema.ResourceData, meta interface{}) error 
 		return err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"active"},
 		Refresh:    userStateRefreshFunc(client, newUser.ID),
@@ -163,7 +163,7 @@ func resourceRancher2UserDelete(d *schema.ResourceData, meta interface{}) error 
 
 	log.Printf("[DEBUG] Waiting for user (%s) to be removed", id)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"removing"},
 		Target:     []string{"removed"},
 		Refresh:    userStateRefreshFunc(client, id),
@@ -183,7 +183,7 @@ func resourceRancher2UserDelete(d *schema.ResourceData, meta interface{}) error 
 }
 
 // userStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher User.
-func userStateRefreshFunc(client *managementClient.Client, userID string) resource.StateRefreshFunc {
+func userStateRefreshFunc(client *managementClient.Client, userID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := client.User.ByID(userID)
 		if err != nil {

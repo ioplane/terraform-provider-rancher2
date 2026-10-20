@@ -2,7 +2,7 @@ package rancher2
 
 import (
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"log"
 	"time"
 
@@ -32,10 +32,10 @@ func resourceRancher2SecretCreate(d *schema.ResourceData, meta interface{}) erro
 	_, projectID := splitProjectID(d.Get("project_id").(string))
 	name := d.Get("name").(string)
 
-	return resource.Retry(d.Timeout(schema.TimeoutCreate), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutCreate), func() *retry.RetryError {
 		err := meta.(*Config).ProjectExist(projectID)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		secret := expandSecret(d)
@@ -44,17 +44,17 @@ func resourceRancher2SecretCreate(d *schema.ResourceData, meta interface{}) erro
 
 		newSecret, err := meta.(*Config).CreateSecret(secret)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = flattenSecret(d, newSecret)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = resourceRancher2SecretRead(d, meta)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -88,10 +88,10 @@ func resourceRancher2SecretUpdate(d *schema.ResourceData, meta interface{}) erro
 
 	log.Printf("[INFO] Updating Secret ID %s", id)
 
-	return resource.Retry(d.Timeout(schema.TimeoutUpdate), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutUpdate), func() *retry.RetryError {
 		secret, err := meta.(*Config).GetSecret(id, projectID, namespaceID)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		update := map[string]interface{}{
@@ -103,17 +103,17 @@ func resourceRancher2SecretUpdate(d *schema.ResourceData, meta interface{}) erro
 
 		newSecret, err := meta.(*Config).UpdateSecret(secret, update)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = flattenSecret(d, newSecret)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = resourceRancher2SecretRead(d, meta)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -127,7 +127,7 @@ func resourceRancher2SecretDelete(d *schema.ResourceData, meta interface{}) erro
 
 	log.Printf("[INFO] Deleting Secret ID %s", id)
 
-	return resource.Retry(d.Timeout(schema.TimeoutDelete), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutDelete), func() *retry.RetryError {
 		secret, err := meta.(*Config).GetSecret(id, projectID, namespaceID)
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -135,12 +135,12 @@ func resourceRancher2SecretDelete(d *schema.ResourceData, meta interface{}) erro
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = meta.(*Config).DeleteSecret(secret)
 		if err != nil {
-			return resource.NonRetryableError(fmt.Errorf("[ERROR] Error removing Secret: %s", err))
+			return retry.NonRetryableError(fmt.Errorf("[ERROR] Error removing Secret: %s", err))
 		}
 
 		d.SetId("")

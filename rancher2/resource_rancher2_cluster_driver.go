@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
@@ -45,7 +45,7 @@ func resourceRancher2ClusterDriverCreate(d *schema.ResourceData, meta interface{
 
 	d.SetId(newClusterDriver.ID)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"downloading", "activating"},
 		Target:     []string{"active", "inactive"},
 		Refresh:    clusterDriverStateRefreshFunc(client, newClusterDriver.ID),
@@ -68,7 +68,7 @@ func resourceRancher2ClusterDriverRead(d *schema.ResourceData, meta interface{})
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		clusterDriver, err := client.KontainerDriver.ByID(d.Id())
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -77,11 +77,11 @@ func resourceRancher2ClusterDriverRead(d *schema.ResourceData, meta interface{})
 				return nil
 			}
 
-			resource.NonRetryableError(err)
+			retry.NonRetryableError(err)
 		}
 
 		if err = flattenClusterDriver(d, clusterDriver); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -118,7 +118,7 @@ func resourceRancher2ClusterDriverUpdate(d *schema.ResourceData, meta interface{
 		return err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active", "inactive", "downloading", "activating", "deactivating"},
 		Target:     []string{"active", "inactive"},
 		Refresh:    clusterDriverStateRefreshFunc(client, newClusterDriver.ID),
@@ -161,7 +161,7 @@ func resourceRancher2ClusterDriverDelete(d *schema.ResourceData, meta interface{
 
 		log.Printf("[DEBUG] Waiting for cluster driver (%s) to be removed", id)
 
-		stateConf := &resource.StateChangeConf{
+		stateConf := &retry.StateChangeConf{
 			Pending:    []string{"removing"},
 			Target:     []string{"removed"},
 			Refresh:    clusterDriverStateRefreshFunc(client, id),
@@ -182,7 +182,7 @@ func resourceRancher2ClusterDriverDelete(d *schema.ResourceData, meta interface{
 }
 
 // clusterDriverStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher ClusterDriver.
-func clusterDriverStateRefreshFunc(client *managementClient.Client, clusterDriverID string) resource.StateRefreshFunc {
+func clusterDriverStateRefreshFunc(client *managementClient.Client, clusterDriverID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := client.KontainerDriver.ByID(clusterDriverID)
 		if err != nil {

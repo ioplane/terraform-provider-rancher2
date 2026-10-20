@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/rancher/norman/types"
 )
@@ -46,7 +46,7 @@ func resourceRancher2ClusterProxyConfigV2Create(d *schema.ResourceData, meta int
 
 	d.SetId(clusterID + "/" + clusterProxyConfigV2Name)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"creating"},
 		Target:     []string{"active"},
 		Refresh:    clusterProxyConfigV2StateRefreshFunc(meta.(*Config), clusterID),
@@ -109,7 +109,7 @@ func resourceRancher2ClusterProxyConfigV2Delete(d *schema.ResourceData, meta int
 		return err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"removing"},
 		Target:     []string{"removed"},
 		Refresh:    clusterProxyConfigV2StateRefreshFunc(meta.(*Config), clusterID),
@@ -129,7 +129,7 @@ func resourceRancher2ClusterProxyConfigV2Delete(d *schema.ResourceData, meta int
 }
 
 // clusterProxyConfigV2StateRefreshFunc returns a resource.StateRefreshFunc, used to watch a ClusterProxyConfig.
-func clusterProxyConfigV2StateRefreshFunc(c *Config, clusterID string) resource.StateRefreshFunc {
+func clusterProxyConfigV2StateRefreshFunc(c *Config, clusterID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		clusterProxyConfigV2Id := clusterID + "/" + clusterProxyConfigV2Name
 		obj := &ClusterProxyConfigV2{}
@@ -182,7 +182,7 @@ func resourceRancher2ClusterProxyConfigV2Update(d *schema.ResourceData, meta int
 		return err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"updating"},
 		Target:     []string{"active"},
 		Refresh:    clusterProxyConfigV2StateRefreshFunc(meta.(*Config), clusterID),

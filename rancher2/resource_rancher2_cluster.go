@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	sdkretry "github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	norman "github.com/rancher/norman/types"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
@@ -130,7 +130,7 @@ func resourceRancher2ClusterCreate(d *schema.ResourceData, meta interface{}) err
 
 	d.SetId(newCluster.ID)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &sdkretry.StateChangeConf{
 		Pending:    []string{},
 		Target:     expectedState,
 		Refresh:    clusterStateRefreshFunc(client, newCluster.ID),
@@ -154,7 +154,7 @@ func resourceRancher2ClusterRead(d *schema.ResourceData, meta interface{}) error
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return sdkretry.Retry(d.Timeout(schema.TimeoutRead), func() *sdkretry.RetryError {
 		cluster := &Cluster{}
 		err = client.APIBaseClient.ByID(managementClient.ClusterType, d.Id(), cluster)
 		if err != nil {
@@ -163,22 +163,22 @@ func resourceRancher2ClusterRead(d *schema.ResourceData, meta interface{}) error
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return sdkretry.NonRetryableError(err)
 		}
 
 		clusterRegistrationToken, err := findClusterRegistrationToken(client, cluster.ID)
 		if err != nil && !IsForbidden(err) {
-			return resource.NonRetryableError(err)
+			return sdkretry.NonRetryableError(err)
 		}
 
 		defaultProjectID, systemProjectID, err := meta.(*Config).GetClusterSpecialProjectsID(cluster.ID)
 		if err != nil && !IsForbidden(err) {
-			return resource.NonRetryableError(err)
+			return sdkretry.NonRetryableError(err)
 		}
 
 		kubeConfig, err := getClusterKubeconfig(meta.(*Config), cluster.ID, d.Get("kube_config").(string))
 		if err != nil && !IsForbidden(err) {
-			return resource.NonRetryableError(err)
+			return sdkretry.NonRetryableError(err)
 		}
 
 		if err = flattenCluster(
@@ -188,7 +188,7 @@ func resourceRancher2ClusterRead(d *schema.ResourceData, meta interface{}) error
 			kubeConfig,
 			defaultProjectID,
 			systemProjectID); err != nil {
-			return resource.NonRetryableError(err)
+			return sdkretry.NonRetryableError(err)
 		}
 
 		return nil
@@ -275,7 +275,7 @@ func resourceRancher2ClusterUpdate(d *schema.ResourceData, meta interface{}) err
 
 	// update the cluster; retry til timeout or non retryable error is returned. If api 500 error is received,
 	// retry to see if update will go through
-	return resource.Retry(d.Timeout(schema.TimeoutUpdate), func() *resource.RetryError {
+	return sdkretry.Retry(d.Timeout(schema.TimeoutUpdate), func() *sdkretry.RetryError {
 		newCluster := &Cluster{}
 		if replace {
 			err = client.APIBaseClient.Replace(managementClient.ClusterType, cluster, update, newCluster)
@@ -284,12 +284,12 @@ func resourceRancher2ClusterUpdate(d *schema.ResourceData, meta interface{}) err
 		}
 		if err != nil {
 			if IsServerError(err) {
-				return resource.RetryableError(err)
+				return sdkretry.RetryableError(err)
 			}
-			return resource.NonRetryableError(err)
+			return sdkretry.NonRetryableError(err)
 		}
 
-		stateConf := &resource.StateChangeConf{
+		stateConf := &sdkretry.StateChangeConf{
 			Pending:    []string{"active", "provisioning", "pending", "updating", "upgrading"},
 			Target:     []string{"active", "provisioning", "pending"},
 			Refresh:    clusterStateRefreshFunc(client, newCluster.ID),
@@ -299,7 +299,7 @@ func resourceRancher2ClusterUpdate(d *schema.ResourceData, meta interface{}) err
 		}
 		_, waitErr := stateConf.WaitForState()
 		if waitErr != nil {
-			return resource.NonRetryableError(fmt.Errorf("[ERROR] waiting for cluster (%s) to be updated: %s", newCluster.ID, waitErr))
+			return sdkretry.NonRetryableError(fmt.Errorf("[ERROR] waiting for cluster (%s) to be updated: %s", newCluster.ID, waitErr))
 		}
 
 		d.SetId(newCluster.ID)
@@ -308,7 +308,7 @@ func resourceRancher2ClusterUpdate(d *schema.ResourceData, meta interface{}) err
 		// it was successful
 		err = resourceRancher2ClusterRead(d, meta)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return sdkretry.NonRetryableError(err)
 		}
 
 		return nil
@@ -341,7 +341,7 @@ func resourceRancher2ClusterDelete(d *schema.ResourceData, meta interface{}) err
 
 	log.Printf("[DEBUG] Waiting for cluster (%s) to be removed", id)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &sdkretry.StateChangeConf{
 		Pending:    []string{"removing"},
 		Target:     []string{"removed"},
 		Refresh:    clusterStateRefreshFunc(client, id),
@@ -361,7 +361,7 @@ func resourceRancher2ClusterDelete(d *schema.ResourceData, meta interface{}) err
 }
 
 // clusterStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher Cluster.
-func clusterStateRefreshFunc(client *managementClient.Client, clusterID string) resource.StateRefreshFunc {
+func clusterStateRefreshFunc(client *managementClient.Client, clusterID string) sdkretry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj := &Cluster{}
 		err := client.APIBaseClient.ByID(managementClient.ClusterType, clusterID, obj)
@@ -382,7 +382,7 @@ func clusterStateRefreshFunc(client *managementClient.Client, clusterID string) 
 }
 
 // clusterRegistrationTokenStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher ClusterRegistrationToken.
-func clusterRegistrationTokenStateRefreshFunc(client *managementClient.Client, clusterID string) resource.StateRefreshFunc {
+func clusterRegistrationTokenStateRefreshFunc(client *managementClient.Client, clusterID string) sdkretry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := client.ClusterRegistrationToken.ByID(clusterID)
 		if err != nil {
@@ -447,7 +447,7 @@ func createClusterRegistrationToken(client *managementClient.Client, clusterID s
 		return nil, err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &sdkretry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"active"},
 		Refresh:    clusterRegistrationTokenStateRefreshFunc(client, newRegToken.ID),
