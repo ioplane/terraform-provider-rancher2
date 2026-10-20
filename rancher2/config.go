@@ -1267,11 +1267,13 @@ func getAuthConfigObject(kind string) (interface{}, error) {
 }
 
 func (c *Config) GetRegistryByFilters(filters map[string]interface{}) (interface{}, error) {
-	if filters == nil || len(filters["name"].(string)) == 0 || len(filters["projectId"].(string)) == 0 {
+	name, nameOK := filters["name"].(string)
+	projectID, projectIDOK := filters["projectId"].(string)
+	if !nameOK || !projectIDOK || len(name) == 0 || len(projectID) == 0 {
 		return nil, fmt.Errorf("[ERROR] Name nor project_id can't be nil")
 	}
 
-	client, err := c.ProjectClient(filters["projectId"].(string))
+	client, err := c.ProjectClient(projectID)
 	if err != nil {
 		return nil, err
 	}

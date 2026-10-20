@@ -15,6 +15,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Return the existing validation error for missing, non-string, or empty registry name and project filters before initializing a project client.
 - Require the feature Update HTTP 502/503 recovery and HTTP 403 failure subcases by exact name in fork CI, with at least 31 critical run/pass events.
 - Preserve the existing feature ID while waiting for recovery after an update returns HTTP 502 or 503.
 - Require the actual feature Update readiness-recovery regression in fork CI and reject critical-test evidence without its exact test name and all 28 run/pass events.
