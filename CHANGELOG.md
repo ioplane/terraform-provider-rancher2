@@ -9,6 +9,10 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Preserve the machine config V2 ID in Terraform state and timeout diagnostics when creation readiness polling times out.
 
+### Security
+
+- Update golang.org/x/net, golang.org/x/text, google.golang.org/grpc, go.opentelemetry.io/otel/sdk, and github.com/ulikunitz/xz to address selected dependency advisories.
+
 ## v4.1.0 (March 6, 2024)
 
 FEATURES:
