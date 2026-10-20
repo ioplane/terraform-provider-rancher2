@@ -7,6 +7,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Resolve the Secret V2 JSON type ambiguity while preserving Kubernetes secret payloads and Norman resource identity.
 - Retry Secret V2 updates with the refreshed resource version after a conflict so concurrent updates do not repeatedly submit stale metadata.
 - Preserve the machine config V2 ID in Terraform state and timeout diagnostics when creation readiness polling times out.
 
