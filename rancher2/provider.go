@@ -1,6 +1,7 @@
 package rancher2
 
 import (
+	"crypto/x509"
 	"fmt"
 	"time"
 
@@ -252,6 +253,10 @@ func providerValidateConfig(config *Config) (*Config, error) {
 			return nil, fmt.Errorf("[ERROR] default timeout is not in golang duration format, error: %v", err)
 		}
 		config.Timeout = timeout
+	}
+
+	if config.CACerts != "" && !x509.NewCertPool().AppendCertsFromPEM([]byte(config.CACerts)) {
+		return &Config{}, fmt.Errorf("[ERROR] ca_certs must contain at least one valid PEM certificate")
 	}
 
 	return config, nil

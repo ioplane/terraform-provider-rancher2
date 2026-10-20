@@ -16,6 +16,8 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Reject nonempty ca_certs without a parseable PEM certificate during provider configuration, including when insecure is enabled.
+
 - Require the registry filter validation parent and all nine exact subcases in fork CI, with at least 41 critical run/pass events.
 - Return the existing validation error for missing, non-string, or empty registry name and project filters before initializing a project client.
 - Require the feature Update HTTP 502/503 recovery and HTTP 403 failure subcases by exact name in fork CI, with at least 31 critical run/pass events.
