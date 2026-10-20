@@ -11,7 +11,7 @@ if [[ ${1:-} == inside ]]; then
   cd /cache
   go version
   [[ $(go env GOVERSION) == go1.27.2 ]] || { echo '::error::Containerfile compiler differs from the reviewed Go 1.27.2'; exit 1; }
-  go env GOTOOLCHAIN GOSUMDB CGO_ENABLED GOEXPERIMENT
+  go env GOPATH GOTOOLCHAIN GOSUMDB CGO_ENABLED GOEXPERIMENT
   sha256sum /src/Containerfile.dev /src/.golangci.yml /src/go.mod /src/go.sum
   export GOFLAGS='-buildvcs=false'
   go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
@@ -242,5 +242,5 @@ podman run --cidfile "$work/cid" --authfile "$work/auth.json" --http-proxy=false
   --volume "$work/cache:/cache:rw" --tmpfs /tmp:rw,nosuid,nodev,size=512m,mode=1777 \
   --volume "$PWD:/src:ro" --workdir /src \
   --env "EXPECTED_HEAD=$EXPECTED_HEAD" --env "SCAN_BASE=$SCAN_BASE" --env "CI_EVENT=$CI_EVENT" \
-  --env GOMAXPROCS=4 --env GOTMPDIR=/cache/gotmp \
+  --env GOMAXPROCS=4 --env GOTMPDIR=/cache/gotmp --env GOPATH=/cache/gopath \
   "$image_id" bash /src/.github/scripts/fork-check.sh inside

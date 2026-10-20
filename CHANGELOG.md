@@ -9,6 +9,10 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Add isolated exact-head Blacksmith checks for the fork release-v15 line; quarantine inherited release, cloud acceptance, notification and privileged workflows before enabling branch CI. Cloud acceptance remains a separate gate.
 
+### Fixed
+
+- Keep the fork CI Go workspace and checksum database state in the writable job-local cache while preserving checksum verification.
+
 ## v4.1.0 (March 6, 2024)
 
 FEATURES:
