@@ -72,7 +72,7 @@ func resourceRancher2FeatureUpdate(d *schema.ResourceData, meta interface{}) err
 		"labels":      toMapString(d.Get("labels").(map[string]interface{})),
 	}
 
-	newFeature, err := client.Feature.Update(feature, update)
+	_, err = client.Feature.Update(feature, update)
 	if err != nil {
 		// Bad gateway or service unavailable error may be fine if Rancher is restarted
 		if !IsBadGatewayError(err) && !IsServiceUnavailableError(err) {
@@ -83,7 +83,7 @@ func resourceRancher2FeatureUpdate(d *schema.ResourceData, meta interface{}) err
 	stateConf := &resource.StateChangeConf{
 		Pending:    []string{"active", "rebooting"},
 		Target:     []string{"active"},
-		Refresh:    featureStateRefreshFunc(meta, newFeature.ID),
+		Refresh:    featureStateRefreshFunc(meta, d.Id()),
 		Timeout:    10 * time.Minute,
 		Delay:      1 * time.Second,
 		MinTimeout: 3 * time.Second,
@@ -91,7 +91,7 @@ func resourceRancher2FeatureUpdate(d *schema.ResourceData, meta interface{}) err
 	_, waitErr := stateConf.WaitForState()
 	if waitErr != nil {
 		return fmt.Errorf(
-			"[ERROR] waiting for feature (%s) to be updated: %s", newFeature.ID, waitErr)
+			"[ERROR] waiting for feature (%s) to be updated: %s", d.Id(), waitErr)
 	}
 
 	return resourceRancher2FeatureRead(d, meta)

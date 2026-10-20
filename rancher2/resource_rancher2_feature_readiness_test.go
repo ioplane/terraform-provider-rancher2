@@ -13,11 +13,16 @@ import (
 
 func TestFeatureUpdateRecoversAfterReadinessFailures(t *testing.T) {
 	for _, tc := range []struct {
-		name     string
-		failures int
+		name         string
+		failures     int
+		updateStatus int
+		wantError    bool
 	}{
 		{name: "ready_success"},
 		{name: "recovery_after_21_failures", failures: 21},
+		{name: "update_502_recovers", updateStatus: http.StatusBadGateway},
+		{name: "update_503_recovers", updateStatus: http.StatusServiceUnavailable},
+		{name: "update_403_fails", updateStatus: http.StatusForbidden, wantError: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			const featureID = "synthetic-feature"
@@ -83,6 +88,10 @@ func TestFeatureUpdateRecoversAfterReadinessFailures(t *testing.T) {
 						return
 					}
 					updates++
+					if tc.updateStatus != 0 {
+						http.Error(w, "synthetic update failure", tc.updateStatus)
+						return
+					}
 					response = map[string]interface{}{"id": featureID, "type": "feature", "name": featureID, "value": true, "links": map[string]string{"self": baseURL + "/v3/features/" + featureID}}
 				default:
 					t.Errorf("unexpected HTTP request: %s %s", r.Method, r.URL.Path)
@@ -105,6 +114,21 @@ func TestFeatureUpdateRecoversAfterReadinessFailures(t *testing.T) {
 			mu.Lock()
 			defer mu.Unlock()
 			t.Logf("Update elapsed=%s updates=%d initial_reads=%d readiness_failures=%d readiness_successes=%d post_update_reads=%d error=%v", time.Since(started), updates, initialReads, readinessFailures, readinessSuccesses, postUpdateReads, err)
+			if tc.wantError {
+				if err == nil {
+					t.Error("Update must return the fatal update error")
+				}
+				if updates != 1 || initialReads != 1 || readinessFailures != 0 || readinessSuccesses != 0 || postUpdateReads != 0 {
+					t.Errorf("fatal Update continued to readiness or Read: updates=%d initial_reads=%d failures=%d successes=%d post_update_reads=%d", updates, initialReads, readinessFailures, readinessSuccesses, postUpdateReads)
+				}
+				if d.Id() != featureID {
+					t.Errorf("fatal Update ID = %q, want %q", d.Id(), featureID)
+				}
+				if state := d.State(); state == nil || state.ID != featureID {
+					t.Errorf("fatal Update state = %#v, want state ID %s", state, featureID)
+				}
+				return
+			}
 			if err != nil {
 				t.Errorf("Update must recover after %d readiness failures: %v", tc.failures, err)
 			}

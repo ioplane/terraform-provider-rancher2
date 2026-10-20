@@ -15,6 +15,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Preserve the existing feature ID while waiting for recovery after an update returns HTTP 502 or 503.
 - Require the actual feature Update readiness-recovery regression in fork CI and reject critical-test evidence without its exact test name and all 28 run/pass events.
 - Keep feature updates pending through Rancher readiness failures instead of reporting the existing feature as not found.
 - Require the bootstrap Read identity-preservation regression in fork CI and reject critical-test evidence without its exact test name and all 25 run/pass events.
