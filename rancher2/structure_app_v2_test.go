@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/rancher/rancher/pkg/api/steve/catalog/types"
 	v1 "github.com/rancher/rancher/pkg/apis/catalog.cattle.io/v1"
 	v3 "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3"
+	types "github.com/rancher/terraform-provider-rancher2/internal/ranchercatalog"
 	"github.com/stretchr/testify/assert"
 )
 

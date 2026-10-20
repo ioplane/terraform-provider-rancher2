@@ -17,6 +17,8 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Security
 
+- Remove the root Rancher server module by owning the six catalog wire contracts and hostname bounds used by the provider; preserve nested Rancher API/client modules and Terraform state and schema behavior.
+
 - Remove the legacy SDK-owned go-getter and golang.org/x/crypto/openpgp dependency roots. Rancher advisory remediation remains separate.
 
 - Update golang.org/x/net, golang.org/x/text, google.golang.org/grpc, go.opentelemetry.io/otel/sdk, and github.com/ulikunitz/xz to address selected dependency advisories.

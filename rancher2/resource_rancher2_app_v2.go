@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/rancher/norman/types"
-	types2 "github.com/rancher/rancher/pkg/api/steve/catalog/types"
+	types2 "github.com/rancher/terraform-provider-rancher2/internal/ranchercatalog"
 )
 
 func resourceRancher2AppV2() *schema.Resource {
