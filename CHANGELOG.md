@@ -15,6 +15,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Require the feature Update HTTP 502/503 recovery and HTTP 403 failure subcases by exact name in fork CI, with at least 31 critical run/pass events.
 - Preserve the existing feature ID while waiting for recovery after an update returns HTTP 502 or 503.
 - Require the actual feature Update readiness-recovery regression in fork CI and reject critical-test evidence without its exact test name and all 28 run/pass events.
 - Keep feature updates pending through Rancher readiness failures instead of reporting the existing feature as not found.
