@@ -87,7 +87,10 @@ rancher2:TestSDKOwnerComputedSet
 rancher2:TestFlattenSecretV2
 rancher2:TestExpandSecretV2
 rancher2:TestBootstrapReadPreservesIdentity
-rancher2:TestFeatureUpdateRecoversAfterReadinessFailures`)
+rancher2:TestFeatureUpdateRecoversAfterReadinessFailures
+rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/update_502_recovers
+rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/update_503_recovers
+rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/update_403_fails`)
     runs, passes, packages := map[string]int{}, map[string]int{}, map[string]int{}
     total, top := 0, 0
     for {
@@ -99,8 +102,8 @@ rancher2:TestFeatureUpdateRecoversAfterReadinessFailures`)
         if event.Action == "run" { runs[key]++; total++; if !strings.Contains(event.Test, "/") { top++ } }
         if event.Action == "pass" { passes[key]++ }
     }
-    fmt.Printf("critical test input: %d top-level, %d total run events, %d required top-level names\n", top, total, len(required))
-    if total < 28 { return fmt.Errorf("critical test input shrank: %d < 28", total) }
+    fmt.Printf("critical test input: %d top-level, %d total run events, %d required names\n", top, total, len(required))
+    if total < 31 { return fmt.Errorf("critical test input shrank: %d < 31", total) }
     for key, count := range runs { if count != 1 || passes[key] != 1 { return fmt.Errorf("test did not run/pass exactly once: %s run=%d pass=%d", key, count, passes[key]) } }
     for key := range passes { if runs[key] != 1 { return fmt.Errorf("pass without run: %s", key) } }
     for _, key := range required { if runs[prefix+key] != 1 || passes[prefix+key] != 1 { return fmt.Errorf("required test missing: %s", key) } }
