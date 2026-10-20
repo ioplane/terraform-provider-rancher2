@@ -109,7 +109,7 @@ func featureStateRefreshFunc(meta interface{}, featureID string) resource.StateR
 	return func() (interface{}, string, error) {
 		err := meta.(*Config).isRancherReady()
 		if err != nil {
-			return nil, "rebooting", nil
+			return featureID, "rebooting", nil
 		}
 		client, err := meta.(*Config).ManagementClient()
 		if err != nil {
