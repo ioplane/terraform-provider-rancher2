@@ -1,3 +1,14 @@
+# Changelog
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- Add isolated exact-head Blacksmith checks for the fork release-v15 line; quarantine inherited release, cloud acceptance, notification and privileged workflows before enabling branch CI. Cloud acceptance remains a separate gate.
+
 ## v4.1.0 (March 6, 2024)
 
 FEATURES:
