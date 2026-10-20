@@ -106,8 +106,7 @@ func resourceRancher2BootstrapRead(d *schema.ResourceData, meta interface{}) err
 	err := bootstrapDoLogin(d, meta)
 	if err != nil {
 		log.Printf("[INFO] Bootstrap is unable to login to Rancher")
-		d.SetId("")
-		return nil
+		return fmt.Errorf("reading bootstrap: %w", err)
 	}
 
 	err = meta.(*Config).waitForRancherLocalActive()
