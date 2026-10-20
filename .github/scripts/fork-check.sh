@@ -85,7 +85,8 @@ rancher2:TestSDKOwnerStateAndID
 rancher2:TestSDKOwnerSecretForceNew
 rancher2:TestSDKOwnerComputedSet
 rancher2:TestFlattenSecretV2
-rancher2:TestExpandSecretV2`)
+rancher2:TestExpandSecretV2
+rancher2:TestBootstrapReadPreservesIdentity`)
     runs, passes, packages := map[string]int{}, map[string]int{}, map[string]int{}
     total, top := 0, 0
     for {
@@ -98,12 +99,12 @@ rancher2:TestExpandSecretV2`)
         if event.Action == "pass" { passes[key]++ }
     }
     fmt.Printf("critical test input: %d top-level, %d total run events, %d required top-level names\n", top, total, len(required))
-    if total < 21 { return fmt.Errorf("critical test input shrank: %d < 21", total) }
+    if total < 25 { return fmt.Errorf("critical test input shrank: %d < 25", total) }
     for key, count := range runs { if count != 1 || passes[key] != 1 { return fmt.Errorf("test did not run/pass exactly once: %s run=%d pass=%d", key, count, passes[key]) } }
     for key := range passes { if runs[key] != 1 { return fmt.Errorf("pass without run: %s", key) } }
     for _, key := range required { if runs[prefix+key] != 1 || passes[prefix+key] != 1 { return fmt.Errorf("required test missing: %s", key) } }
     for _, pkg := range []string{"internal/ranchercatalog", "rancher2"} { if packages[prefix+pkg] != 1 { return fmt.Errorf("package did not pass: %s", pkg) } }
-    fmt.Printf("critical tests: %d run / %d pass / 0 fail / 0 skip; required 15 names present\n", total, len(passes))
+    fmt.Printf("critical tests: %d run / %d pass / 0 fail / 0 skip; required %d names present\n", total, len(passes), len(required))
     return nil
 }
 
@@ -158,7 +159,7 @@ GO
   gate vet go vet ./...
   gate format golangci-lint fmt --diff ./...
   gate lint golangci-lint run --timeout=15m ./...
-  selection='^(TestOriginalRancherCatalogContract|TestCatalogAndHostnameOriginalContract|TestFlattenAppV2|TestExpandChart(Install|Upgrade)(Action)?V2|TestWaitForMachineConfigV2TimeoutPreservesIdentity|TestUpdateSecretV2ConflictRefreshesResourceVersion|TestSecretV2JSONWire|TestSDKOwner.*|TestFlattenSecretV2|TestExpandSecretV2)$'
+  selection='^(TestOriginalRancherCatalogContract|TestCatalogAndHostnameOriginalContract|TestFlattenAppV2|TestExpandChart(Install|Upgrade)(Action)?V2|TestWaitForMachineConfigV2TimeoutPreservesIdentity|TestUpdateSecretV2ConflictRefreshesResourceVersion|TestSecretV2JSONWire|TestSDKOwner.*|TestFlattenSecretV2|TestExpandSecretV2|TestBootstrapReadPreservesIdentity)$'
   gate critical-tests go test -json -race -shuffle=on -covermode=atomic -count=1 -run "$selection" ./internal/ranchercatalog ./rancher2
   gate critical-input /cache/check tests /cache/evidence/critical-tests.log
   gate vulnerability-json govulncheck -db=https://vuln.go.dev -scan=symbol -json ./...

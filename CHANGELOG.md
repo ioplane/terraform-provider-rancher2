@@ -15,6 +15,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Require the bootstrap Read identity-preservation regression in fork CI and reject critical-test evidence without its exact test name and all 25 run/pass events.
 - Preserve the bootstrap resource ID and report login or readiness failures during refresh instead of treating them as resource absence.
 - Keep the fork CI Go workspace and checksum database state in the writable job-local cache while preserving checksum verification.
 - Resolve the Secret V2 JSON type ambiguity while preserving Kubernetes secret payloads and Norman resource identity.
