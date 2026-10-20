@@ -81,7 +81,7 @@ func TestProviderRejectsInvalidCACerts(t *testing.T) {
 			d := schema.TestResourceDataRaw(t, p.Schema, map[string]interface{}{
 				"api_url": server.URL, "token_key": token, "ca_certs": ca, "insecure": tc.insecure, "bootstrap": false, "timeout": "3s",
 			})
-			raw, err := p.ConfigureFunc(d)
+			raw, err := providerConfigure(d)
 			t.Cleanup(func() { t.Logf("http_requests=%d tls_handshake_attempts=%d", requests.Load(), handshakes.Load()) })
 			if tc.reject {
 				if err == nil {
