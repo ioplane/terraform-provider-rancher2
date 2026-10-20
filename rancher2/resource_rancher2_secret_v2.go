@@ -256,7 +256,7 @@ func updateSecretV2(c *Config, clusterID, id string, obj *SecretV2) (*SecretV2, 
 			}
 			obj.ObjectMeta.ResourceVersion = newObj.ObjectMeta.ResourceVersion
 			// Converting secret V2 object to map[string]interface{} as type fields is duplicated
-			updateMap, err := interfaceToMap(obj)
+			updateMap, err = interfaceToMap(obj)
 			if err != nil {
 				return nil, err
 			}
