@@ -1,12 +1,13 @@
 package rancher2
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func resourceRancher2GlobalRole() *schema.Resource {
@@ -18,7 +19,7 @@ func resourceRancher2GlobalRole() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			State: resourceRancher2GlobalRoleImport,
 		},
-		CustomizeDiff: func(d *schema.ResourceDiff, i any) error {
+		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, i any) error {
 			return validateInheritedNamespacedRules(d.Get("inherited_namespaced_rules"))
 		},
 

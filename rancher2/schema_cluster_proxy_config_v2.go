@@ -3,7 +3,7 @@ package rancher2
 import (
 	"maps"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func clusterProxyConfigV2Fields() map[string]*schema.Schema {

@@ -1,26 +1,28 @@
 package rancher2
 
 import (
-	"errors"
+	"fmt"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/hashicorp/go-cty/cty"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAuthConfigGenericOIDCResourceValidateNoData(t *testing.T) {
 	r := resourceRancher2AuthConfigGenericOIDC()
 	d := terraform.NewResourceConfigRaw(map[string]any{})
-	warns, errs := r.Validate(d)
-
-	assert.Empty(t, warns)
-
-	assert.Len(t, errs, 4)
-	joined := errors.Join(errs...)
-	assert.ErrorContains(t, joined, "\"issuer\": required field is not set")
-	assert.ErrorContains(t, joined, "\"client_id\": required field is not set")
-	assert.ErrorContains(t, joined, "\"client_secret\": required field is not set")
-	assert.ErrorContains(t, joined, "\"rancher_url\": required field is not set")
+	expected := make(diag.Diagnostics, 0, 4)
+	for _, field := range []string{"issuer", "client_id", "client_secret", "rancher_url"} {
+		expected = append(expected, diag.Diagnostic{
+			Severity:      diag.Error,
+			Summary:       "Missing required argument",
+			Detail:        fmt.Sprintf("The argument %q is required, but no definition was found.", field),
+			AttributePath: cty.GetAttrPath(field),
+		})
+	}
+	assert.ElementsMatch(t, expected, r.Validate(d))
 }
 
 func TestAuthConfigGenericOIDCResourceEndSessionEndpointValidation(t *testing.T) {
@@ -32,10 +34,11 @@ func TestAuthConfigGenericOIDCResourceEndSessionEndpointValidation(t *testing.T)
 		"rancher_url":          "https://rancher.example.com/verify-auth",
 		"end_session_endpoint": "test",
 	})
-	warns, errs := r.Validate(d)
-
-	assert.Empty(t, warns)
-	assert.ErrorContains(t, errors.Join(errs...), `expected "end_session_endpoint" to have a host`)
+	assert.Equal(t, diag.Diagnostics{{
+		Severity:      diag.Error,
+		Summary:       `expected "end_session_endpoint" to have a host, got test`,
+		AttributePath: cty.GetAttrPath("end_session_endpoint"),
+	}}, r.Validate(d))
 }
 
 func TestAuthConfigGenericOIDCResourcePKCEMethodValidation(t *testing.T) {
@@ -47,10 +50,11 @@ func TestAuthConfigGenericOIDCResourcePKCEMethodValidation(t *testing.T) {
 		"rancher_url":   "https://rancher.example.com/verify-auth",
 		"pkce_method":   "invalid",
 	})
-	warns, errs := r.Validate(d)
-
-	assert.Empty(t, warns)
-	assert.ErrorContains(t, errors.Join(errs...), `"pkce_method": only supported value is "S256", got "invalid"`)
+	assert.Equal(t, diag.Diagnostics{{
+		Severity:      diag.Error,
+		Summary:       `"pkce_method": only supported value is "S256", got "invalid"`,
+		AttributePath: cty.GetAttrPath("pkce_method"),
+	}}, r.Validate(d))
 }
 
 func TestAuthConfigGenericOIDCResourcePKCEMethodEmpty(t *testing.T) {
@@ -62,8 +66,5 @@ func TestAuthConfigGenericOIDCResourcePKCEMethodEmpty(t *testing.T) {
 		"rancher_url":   "https://rancher.example.com/verify-auth",
 		"pkce_method":   "",
 	})
-	warns, errs := r.Validate(d)
-
-	assert.Empty(t, warns)
-	assert.Empty(t, errs)
+	assert.Empty(t, r.Validate(d))
 }

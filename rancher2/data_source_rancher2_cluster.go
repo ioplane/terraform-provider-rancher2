@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
 
@@ -46,48 +46,48 @@ func dataSourceRancher2Cluster() *schema.Resource {
 				Sensitive: true,
 			},
 			"rke2_config": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterRKE2ConfigFields(),
 				},
 			},
 			"k3s_config": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterK3SConfigFields(),
 				},
 			},
 			"eks_config_v2": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterEKSConfigV2Fields(),
 				},
 			},
 			"aks_config_v2": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterAKSConfigV2Fields(),
 				},
 			},
 			"gke_config_v2": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterGKEConfigV2Fields(),
 				},
 			},
 			"oke_config": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterOKEConfigFields(),
@@ -106,16 +106,16 @@ func dataSourceRancher2Cluster() *schema.Resource {
 				Computed: true,
 			},
 			"cluster_auth_endpoint": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterAuthEndpoint(),
 				},
 			},
 			"cluster_registration_token": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterRegistrationTokenFields(),

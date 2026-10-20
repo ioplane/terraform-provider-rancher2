@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 const (
@@ -16,7 +16,7 @@ const (
 )
 
 var (
-	testAccProviders                                 map[string]terraform.ResourceProvider
+	testAccProviders                                 map[string]*schema.Provider
 	testAccProvider                                  *schema.Provider
 	testAccRancher2AuthConfigGenericOIDCClientID     = os.Getenv("RANCHER_OIDC_CLIENT_ID")
 	testAccRancher2AuthConfigGenericOIDCClientSecret = os.Getenv("RANCHER_OIDC_CLIENT_SECRET")
@@ -25,8 +25,8 @@ var (
 )
 
 func init() {
-	testAccProvider = Provider().(*schema.Provider)
-	testAccProviders = map[string]terraform.ResourceProvider{
+	testAccProvider = Provider()
+	testAccProviders = map[string]*schema.Provider{
 		"rancher2": testAccProvider,
 	}
 }

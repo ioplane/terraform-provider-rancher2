@@ -1,7 +1,7 @@
 package rancher2
 
 import (
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceRancher2PodSecurityAdmissionConfigurationTemplate() *schema.Resource {
@@ -23,7 +23,7 @@ func dataSourceRancher2PodSecurityAdmissionConfigurationTemplate() *schema.Resou
 				Type:        schema.TypeList,
 				Description: "defaults allows the user to define admission control mode for Pod Security",
 				Computed:    true,
-				MaxItems:    1,
+
 				Elem: &schema.Resource{
 					Schema: podSecurityAdmissionConfigurationTemplateDefaultFields(),
 				},
@@ -32,7 +32,7 @@ func dataSourceRancher2PodSecurityAdmissionConfigurationTemplate() *schema.Resou
 				Type:        schema.TypeList,
 				Description: "exemptions allows the creation of pods for specific Usernames, RuntimeClassNames, and Namespaces that would otherwise be prohibited",
 				Computed:    true,
-				MaxItems:    1,
+
 				Elem: &schema.Resource{
 					Schema: podSecurityAdmissionConfigurationTemplateExemptionFields(),
 				},

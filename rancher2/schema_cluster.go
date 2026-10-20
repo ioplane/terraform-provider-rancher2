@@ -1,8 +1,8 @@
 package rancher2
 
 import (
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
 
@@ -350,8 +350,8 @@ func clusterFields() map[string]*schema.Schema {
 			},
 		},
 		"cluster_registration_token": {
-			Type:     schema.TypeList,
-			MaxItems: 1,
+			Type: schema.TypeList,
+
 			Computed: true,
 			Elem: &schema.Resource{
 				Schema: clusterRegistrationTokenFields(),

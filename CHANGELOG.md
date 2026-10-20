@@ -5,6 +5,10 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Migrate the provider runtime to Terraform Plugin SDK v2.40.1 with protocol 5 serving; protocol 4 is no longer served. Existing deprecation messages are exposed in the schema, missing required fields use structured SDK diagnostics, and computed-only outputs no longer declare configurable-only MaxItems metadata.
+
 ### Fixed
 
 - Resolve the Secret V2 JSON type ambiguity while preserving Kubernetes secret payloads and Norman resource identity.
@@ -12,6 +16,8 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Preserve the machine config V2 ID in Terraform state and timeout diagnostics when creation readiness polling times out.
 
 ### Security
+
+- Remove the legacy SDK-owned go-getter and golang.org/x/crypto/openpgp dependency roots. Rancher advisory remediation remains separate.
 
 - Update golang.org/x/net, golang.org/x/text, google.golang.org/grpc, go.opentelemetry.io/otel/sdk, and github.com/ulikunitz/xz to address selected dependency advisories.
 

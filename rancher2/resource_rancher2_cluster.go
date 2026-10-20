@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	norman "github.com/rancher/norman/types"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 	"k8s.io/client-go/kubernetes"
@@ -24,7 +24,7 @@ func resourceRancher2Cluster() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			State: resourceRancher2ClusterImport,
 		},
-		CustomizeDiff: func(d *schema.ResourceDiff, i interface{}) error {
+		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, i interface{}) error {
 			if d.Get("driver") == clusterDriverEKSV2 && d.HasChange("eks_config_v2") {
 				old, new := d.GetChange("eks_config_v2")
 				oldObj := expandClusterEKSConfigV2(old.([]interface{}))
