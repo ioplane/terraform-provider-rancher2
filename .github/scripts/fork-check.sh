@@ -100,7 +100,16 @@ rancher2:TestGetRegistryByFiltersValidation/non_string_project_id
 rancher2:TestGetRegistryByFiltersValidation/empty_name
 rancher2:TestGetRegistryByFiltersValidation/empty_project_id
 rancher2:TestGetRegistryByFiltersValidation/project_list
-rancher2:TestGetRegistryByFiltersValidation/namespaced_list`)
+rancher2:TestGetRegistryByFiltersValidation/namespaced_list
+rancher2:TestProviderRejectsInvalidCACerts
+rancher2:TestProviderRejectsInvalidCACerts/invalid_text
+rancher2:TestProviderRejectsInvalidCACerts/invalid_certificate
+rancher2:TestProviderRejectsInvalidCACerts/whitespace
+rancher2:TestProviderRejectsInvalidCACerts/invalid_insecure
+rancher2:TestProviderRejectsInvalidCACerts/empty_ca
+rancher2:TestProviderRejectsInvalidCACerts/valid_ca
+rancher2:TestProviderRejectsInvalidCACerts/valid_bundle_with_unrelated_data
+rancher2:TestProviderRejectsInvalidCACerts/empty_ca_insecure`)
     runs, passes, packages := map[string]int{}, map[string]int{}, map[string]int{}
     total, top := 0, 0
     for {
@@ -113,7 +122,7 @@ rancher2:TestGetRegistryByFiltersValidation/namespaced_list`)
         if event.Action == "pass" { passes[key]++ }
     }
     fmt.Printf("critical test input: %d top-level, %d total run events, %d required names\n", top, total, len(required))
-    if total < 41 { return fmt.Errorf("critical test input shrank: %d < 41", total) }
+    if total < 50 { return fmt.Errorf("critical test input shrank: %d < 50", total) }
     for key, count := range runs { if count != 1 || passes[key] != 1 { return fmt.Errorf("test did not run/pass exactly once: %s run=%d pass=%d", key, count, passes[key]) } }
     for key := range passes { if runs[key] != 1 { return fmt.Errorf("pass without run: %s", key) } }
     for _, key := range required { if runs[prefix+key] != 1 || passes[prefix+key] != 1 { return fmt.Errorf("required test missing: %s", key) } }
@@ -173,7 +182,7 @@ GO
   gate vet go vet ./...
   gate format golangci-lint fmt --diff ./...
   gate lint golangci-lint run --timeout=15m ./...
-  selection='^(TestOriginalRancherCatalogContract|TestCatalogAndHostnameOriginalContract|TestFlattenAppV2|TestExpandChart(Install|Upgrade)(Action)?V2|TestWaitForMachineConfigV2TimeoutPreservesIdentity|TestUpdateSecretV2ConflictRefreshesResourceVersion|TestSecretV2JSONWire|TestSDKOwner.*|TestFlattenSecretV2|TestExpandSecretV2|TestBootstrapReadPreservesIdentity|TestFeatureUpdateRecoversAfterReadinessFailures|TestGetRegistryByFiltersValidation)$'
+  selection='^(TestOriginalRancherCatalogContract|TestCatalogAndHostnameOriginalContract|TestFlattenAppV2|TestExpandChart(Install|Upgrade)(Action)?V2|TestWaitForMachineConfigV2TimeoutPreservesIdentity|TestUpdateSecretV2ConflictRefreshesResourceVersion|TestSecretV2JSONWire|TestSDKOwner.*|TestFlattenSecretV2|TestExpandSecretV2|TestBootstrapReadPreservesIdentity|TestFeatureUpdateRecoversAfterReadinessFailures|TestGetRegistryByFiltersValidation|TestProviderRejectsInvalidCACerts)$'
   gate critical-tests go test -json -race -shuffle=on -covermode=atomic -count=1 -run "$selection" ./internal/ranchercatalog ./rancher2
   gate critical-input /cache/check tests /cache/evidence/critical-tests.log
   gate vulnerability-json govulncheck -db=https://vuln.go.dev -scan=symbol -json ./...

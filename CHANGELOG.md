@@ -9,6 +9,10 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Add isolated exact-head Blacksmith checks for the fork release-v15 line; quarantine inherited release, cloud acceptance, notification and privileged workflows before enabling branch CI. Cloud acceptance remains a separate gate.
 
+### Changed
+
+- Require the provider CA validation parent and all eight exact subcases in fork CI, with at least 50 critical run/pass events.
+
 ### Fixed
 
 - Require the registry filter validation parent and all nine exact subcases in fork CI, with at least 41 critical run/pass events.
