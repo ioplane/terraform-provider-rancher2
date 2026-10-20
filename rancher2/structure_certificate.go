@@ -222,7 +222,7 @@ func expandCertificateData(input map[string]interface{}) error {
 		}
 		sum = fmt.Sprintf("%02X", data)
 	}
-	input[projectClient.NamespacedCertificateFieldCertFingerprint] = string(sum[:])
+	input[projectClient.NamespacedCertificateFieldCertFingerprint] = sum
 	input[projectClient.NamespacedCertificateFieldExpiresAt] = certificate.NotAfter.String()
 	input[projectClient.NamespacedCertificateFieldIssuedAt] = certificate.NotBefore.String()
 	input[projectClient.NamespacedCertificateFieldIssuer] = certificate.Issuer.CommonName

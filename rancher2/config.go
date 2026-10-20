@@ -1049,7 +1049,7 @@ func (c *Config) activateNodeDriver(id string, interval time.Duration) error {
 			}
 
 			if !updated {
-				driver, err = client.NodeDriver.ActionActivate(driver)
+				_, err = client.NodeDriver.ActionActivate(driver)
 				if err == nil {
 					updated = true
 					continue

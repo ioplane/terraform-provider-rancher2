@@ -263,7 +263,7 @@ func DoGet(url, username, password, token, cacert string, insecure bool) ([]byte
 	log.Println("Getting from ", url)
 
 	client := &http.Client{
-		Timeout: time.Duration(60 * time.Second),
+		Timeout: 60 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= maxHTTPRedirect {
 				return fmt.Errorf("Stopped after %d redirects", maxHTTPRedirect)
