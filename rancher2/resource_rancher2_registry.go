@@ -2,11 +2,11 @@ package rancher2
 
 import (
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func resourceRancher2Registry() *schema.Resource {
@@ -32,10 +32,10 @@ func resourceRancher2RegistryCreate(d *schema.ResourceData, meta interface{}) er
 	_, projectID := splitProjectID(d.Get("project_id").(string))
 	name := d.Get("name").(string)
 
-	return resource.Retry(d.Timeout(schema.TimeoutCreate), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutCreate), func() *retry.RetryError {
 		err := meta.(*Config).ProjectExist(projectID)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		registry := expandRegistry(d)
@@ -44,17 +44,17 @@ func resourceRancher2RegistryCreate(d *schema.ResourceData, meta interface{}) er
 
 		newRegistry, err := meta.(*Config).CreateRegistry(registry)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = flattenRegistry(d, newRegistry)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = resourceRancher2RegistryRead(d, meta)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -68,7 +68,7 @@ func resourceRancher2RegistryRead(d *schema.ResourceData, meta interface{}) erro
 
 	log.Printf("[INFO] Refreshing Registry ID %s", id)
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		registry, err := meta.(*Config).GetRegistry(id, projectID, namespaceID)
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -76,11 +76,11 @@ func resourceRancher2RegistryRead(d *schema.ResourceData, meta interface{}) erro
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = flattenRegistry(d, registry); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -94,10 +94,10 @@ func resourceRancher2RegistryUpdate(d *schema.ResourceData, meta interface{}) er
 
 	log.Printf("[INFO] Updating Registry ID %s", id)
 
-	return resource.Retry(d.Timeout(schema.TimeoutUpdate), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutUpdate), func() *retry.RetryError {
 		registry, err := meta.(*Config).GetRegistry(id, projectID, namespaceID)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		update := map[string]interface{}{
@@ -109,17 +109,17 @@ func resourceRancher2RegistryUpdate(d *schema.ResourceData, meta interface{}) er
 
 		newRegistry, err := meta.(*Config).UpdateRegistry(registry, update)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = flattenRegistry(d, newRegistry)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = resourceRancher2RegistryRead(d, meta)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -133,7 +133,7 @@ func resourceRancher2RegistryDelete(d *schema.ResourceData, meta interface{}) er
 
 	log.Printf("[INFO] Deleting Registry ID %s", id)
 
-	return resource.Retry(d.Timeout(schema.TimeoutDelete), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutDelete), func() *retry.RetryError {
 		registry, err := meta.(*Config).GetRegistry(id, projectID, namespaceID)
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -141,12 +141,12 @@ func resourceRancher2RegistryDelete(d *schema.ResourceData, meta interface{}) er
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = meta.(*Config).DeleteRegistry(registry)
 		if err != nil {
-			return resource.NonRetryableError(fmt.Errorf("[ERROR] Error removing Registry: %s", err))
+			return retry.NonRetryableError(fmt.Errorf("[ERROR] Error removing Registry: %s", err))
 		}
 
 		d.SetId("")

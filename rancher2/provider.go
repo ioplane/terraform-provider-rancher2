@@ -1,11 +1,11 @@
 package rancher2
 
 import (
+	"crypto/x509"
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 const (
@@ -31,8 +31,8 @@ type CLIConfig struct {
 	Path      string `json:"path,omitempty"`
 }
 
-// Provider returns a terraform.ResourceProvider.
-func Provider() terraform.ResourceProvider {
+// Provider returns the Rancher provider schema.
+func Provider() *schema.Provider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
 			"api_url": {
@@ -253,6 +253,10 @@ func providerValidateConfig(config *Config) (*Config, error) {
 			return nil, fmt.Errorf("[ERROR] default timeout is not in golang duration format, error: %v", err)
 		}
 		config.Timeout = timeout
+	}
+
+	if config.CACerts != "" && !x509.NewCertPool().AppendCertsFromPEM([]byte(config.CACerts)) {
+		return &Config{}, fmt.Errorf("[ERROR] ca_certs must contain at least one valid PEM certificate")
 	}
 
 	return config, nil

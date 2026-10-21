@@ -6,8 +6,10 @@ Terraform Provider for Rancher v2
 Requirements
 ------------
 
+The provider binary serves Terraform plugin protocol 6 through [HashiCorp's SDK v2 translation adapter](https://developer.hashicorp.com/terraform/plugin/mux/translating-protocol-version-5-to-6). Existing resource implementations and state schemas remain on SDK v2; this is not a migration to Plugin Framework. The registry manifest advertises only protocol 6, matching the executable. The existing Terraform CLI minimum below already exceeds the adapter's CLI 1.1.5 requirement.
+
 - [Terraform](https://www.terraform.io/downloads.html) >= 1.5.0
-- [Go](https://golang.org/doc/install) 1.23 to build the provider plugin
+- [Go](https://golang.org/doc/install) >= 1.26.4 to build the provider plugin; the project container pins Go 1.27.3
 
 Building The Provider
 ---------------------
@@ -143,3 +145,23 @@ Updating Release Version
 * Make sure to update the 'release-please-config.json' file at the root of the repository when adding a new version.
 * Once release/v14 is created this will mean that PRs will need to be made directly to the release/v13 branch to update the version there.
 * Main should have the version from the last created release branch.
+
+Setting read context pilot
+--------------------------
+
+The `rancher2_setting` data source carries the SDK caller context through readiness, schema discovery, default-version lookup, initialization waits and the final read. Its private read-only client cache is separate from legacy management clients. Token updates, client restarts and URL normalization invalidate this cache; an already acquired snapshot may finish with its original credentials. Supported configuration methods synchronize pilot snapshots; concurrent direct writes to exported `Config` fields are outside this contract.
+
+MachineConfig reads also carry the caller context through cold Catalog discovery, initialization waits and GET retries. Setting and Catalog reuse the same private cache algorithm with separate API-scope keys; supported token, restart and URL changes invalidate every scope. Only a completed resource GET returning HTTP 404 clears identity; schema discovery errors and canceled responses preserve it.
+
+MachineConfig Delete uses the SDK caller context and configured delete timeout. Lookup, one DELETE and absence polling retain one client snapshot through invalidation. A successful DELETE does not confirm absence; canceled or failed mutations and waits preserve identity without replaying the write.
+
+The exact Norman fork replacement in `go.mod` supplies the additive context API. MachineConfig and NodeDriver CRUD, and CloudCredential CRUD/import, use contextual operations. CloudCredential creation retains one client snapshot across node-driver activation, creation, polling and readback. An already active driver needs no activation POST; an uncertain activation response returns an error without replaying the action. Reconcile the driver state before retrying the operation. A returned credential ID is retained when later work is canceled; lookup responses with a different ID are rejected before state publication or deletion.
+
+Other legacy resource families and shared lifecycle helpers still require migration. The extra cache may add discovery requests and connection pools; these changes do not establish whole-provider cancellation, binary compatibility, performance or live acceptance.
+
+Nutanix hardware options
+-----------------------
+
+`nutanix_config.vm_nic_queues` is an optional positive integer bounded by `vm_cpus * vm_cores`. It is serialized as the string expected by the node-driver flag. `vm_management_network` optionally selects an attached subnet UUID; named-network resolution and membership remain the driver's responsibility. Omitted options retain the existing payload and driver defaults.
+
+Opt-in writes require matching writable string fields in the installed Rancher API schema. Missing fields fail before MachineConfig writes; responses that drop requested values return an error after retaining the assigned ID. This source guard does not establish DynamicSchema/CRD retention, hardware or guest configuration, supported platform versions or performance. Qualify the matching driver, complete schema chain and module/pool contract before adoption.

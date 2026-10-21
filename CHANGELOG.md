@@ -7,6 +7,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Add opt-in Nutanix NIC queues and management subnet fields with no defaults, integer-to-string wire conversion, overflow-safe CPU capacity validation and installed-schema checks before writes.
 - Require the eight MachineConfig context delete events by exact name in fork CI, with at least 178 critical run/pass events.
 - Require the eleven Catalog factory and MachineConfig context read events by exact name in fork CI, with at least 170 critical run/pass events.
 - Require the additional MachineConfig HTTP 400 identity case by exact name; the existing fixture also checks Delete admission and state refresh, with at least 159 critical run/pass events.
@@ -18,20 +19,66 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Serve Terraform plugin protocol 6 using the official SDK v2 translation adapter while retaining resource/state schemas and the Rancher provider address; advertise only protocol 6 in the registry manifest.
+
+- Propagate NodeDriver caller cancellation through CRUD, imports, readiness and final refresh using one contextual client snapshot; preserve known identity on failed or mismatched responses and do not replay writes with an uncertain outcome.
+- Propagate the MachineConfig Create deadline through one POST and readiness; retain known IDs on failure and refresh contextual schemas only at the existing RBAC recovery boundary, without a legacy management request or another POST.
+- Use the native MachineConfig Update deadline and one contextual client snapshot for lookup, a single PUT and final refresh; preserve identity on interrupted, missing or mismatched responses and remove duplicate refresh requests.
+- Propagate the MachineConfig delete caller context through lookup, one DELETE and absence polling with a single client snapshot; canceled or uncertain outcomes preserve identity, and a still-present resource remains pending until lookup confirms absence.
+- Propagate the MachineConfig read caller context through cold Catalog discovery, cache waits and GET retries, reusing the Setting cache algorithm with independent API scopes; schema failures and canceled reads preserve identity.
+- Setting Create, Update and Delete propagate cancellation through lookup, writes, readiness and final refresh without replaying writes; forbidden or interrupted lookups preserve identity, and system settings retain PUT reset behavior.
+- Pin the reviewed Norman context fork for the Setting read pilot while retaining the Rancher 2.15 module line and existing Go floor/toolchain.
+
 - Require the readiness deadline parent and all six exact subcases in fork CI, with at least 57 critical run/pass events.
 - Require the provider CA validation parent and all eight exact subcases in fork CI, with at least 50 critical run/pass events.
+- Upgrade Norman to v0.9.12 for the Rancher 2.15 compatibility line, with Kubernetes client libraries v0.37.1 and controller-runtime v0.25.2; the dependency graph includes vendor-required Wrangler v3.8.0-rc.3.
+- Use the pinned Terraform Plugin SDK helper/retry package directly while preserving existing retry and resource lifecycle contracts.
+- Migrate the provider runtime to Terraform Plugin SDK v2.40.1 with protocol 5 serving; protocol 4 is no longer served. Existing deprecation messages are exposed in the schema, missing required fields use structured SDK diagnostics, and computed-only outputs no longer declare configurable-only MaxItems metadata.
 
 ### Fixed
 
+- Reject MachineConfig lookup identity mismatches in the shared decoder before refresh or deletion, and retain a decoded Setting creation ID when cancellation arrives at the response boundary.
+
+- Carry the CloudCredential CRUD/import caller context through one client snapshot, HTTP requests, activation, polling and readback; retain known IDs on cancellation and reject foreign lookup identities before writes.
+- Send node-driver activation at most once per CloudCredential creation, return uncertain action failures without replay, and skip activation for an already active driver.
+
+- Preserve CloudCredential and ClusterDriver identity on refused lookups, and propagate ClusterDriver GET errors instead of reporting a successful refresh; only HTTP 404 confirms absence.
+- Return MachineConfig, NodeDriver, ClusterDriver and Feature state-write errors instead of ignoring them, and retain the prior identity until flattening succeeds.
+- Preserve NodeDriver identity and return access errors on HTTP 403 during refresh, deletion lookup and readiness polling; only HTTP 404 confirms absence.
+- Preserve Feature identity on a refused GET403 and propagate the lookup error from readiness; only GET404 confirms absence.
+- Preserve MachineConfig identity when the initial Delete lookup fails, and propagate state-refresh errors instead of confirming active or removed; only lookup HTTP 404 confirms absence.
+- Preserve MachineConfig identity when a successful response drops requested Nutanix hardware fields, and report malformed queue values during refresh instead of silently losing intent.
+- Preserve MachineConfig identity and report access refusal or missing schema GET permission during refresh; only HTTP 404 marks the object absent.
+- Preserve managed Setting identity on cancellation, access refusal and client initialization failure; clear it only after the Setting lookup returns HTTP 404. Managed reads now receive the Terraform caller context.
+- Propagate Terraform cancellation through Setting imports without publishing imported state on lookup failure.
+- Return a Setting diagnostic for missing, typed-nil or invalid provider metadata without changing prior state or exposing metadata values.
+- Propagate the Setting data source caller context through cold initialization, waiters and HTTP reads; retain prior resource data on errors and isolate cache generations during token updates and restarts.
+
+- Bound Rancher readiness HTTP headers, response bodies and retry waits by positive provider timeouts while preserving the first complete probe for direct nonpositive Config timeouts.
+- Reject nonempty ca_certs without a parseable PEM certificate during provider configuration, including when insecure is enabled.
+
 - Require the registry filter validation parent and all nine exact subcases in fork CI, with at least 41 critical run/pass events.
+- Return the existing validation error for missing, non-string, or empty registry name and project filters before initializing a project client.
 - Require the feature Update HTTP 502/503 recovery and HTTP 403 failure subcases by exact name in fork CI, with at least 31 critical run/pass events.
+- Preserve the existing feature ID while waiting for recovery after an update returns HTTP 502 or 503.
 - Require the actual feature Update readiness-recovery regression in fork CI and reject critical-test evidence without its exact test name and all 28 run/pass events.
+- Keep feature updates pending through Rancher readiness failures instead of reporting the existing feature as not found.
 - Require the bootstrap Read identity-preservation regression in fork CI and reject critical-test evidence without its exact test name and all 25 run/pass events.
+- Preserve the bootstrap resource ID and report login or readiness failures during refresh instead of treating them as resource absence.
 - Keep the fork CI Go workspace and checksum database state in the writable job-local cache while preserving checksum verification.
+- Resolve the Secret V2 JSON type ambiguity while preserving Kubernetes secret payloads and Norman resource identity.
+- Retry Secret V2 updates with the refreshed resource version after a conflict so concurrent updates do not repeatedly submit stale metadata.
+- Preserve the machine config V2 ID in Terraform state and timeout diagnostics when creation readiness polling times out.
 
 ### Security
 
 - Require the Go 1.27.3 compiler in fork CI for the GO-2026-6809 crypto/x509 fix; run provider checks only for pull requests targeting the CI-control branch, which has no product bootstrap inputs; patched-compiler execution and the full hosted checks remain required.
+- Pin the development compiler and preferred module toolchain to Go 1.27.3 for GO-2026-6809 (CVE-2026-111943), which distrusts compromised intermediate certificates in crypto/x509.
+- Remove the root Rancher server module by owning the six catalog wire contracts and hostname bounds used by the provider; preserve nested Rancher API/client modules and Terraform state and schema behavior.
+
+- Remove the legacy SDK-owned go-getter and golang.org/x/crypto/openpgp dependency roots. Rancher advisory remediation remains separate.
+
+- Update golang.org/x/net, golang.org/x/text, google.golang.org/grpc, go.opentelemetry.io/otel/sdk, and github.com/ulikunitz/xz to address selected dependency advisories.
 
 ## v4.1.0 (March 6, 2024)
 

@@ -1,44 +1,64 @@
 package rancher2
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/rancher/norman/clientbase"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
 
 func resourceRancher2Setting() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceRancher2SettingCreate,
-		Read:   resourceRancher2SettingRead,
-		Update: resourceRancher2SettingUpdate,
-		Delete: resourceRancher2SettingDelete,
+		CreateWithoutTimeout: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2SettingCreate(ctx, d, meta))
+		},
+		ReadWithoutTimeout: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2SettingRead(ctx, d, meta))
+		},
+		UpdateWithoutTimeout: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2SettingUpdate(ctx, d, meta))
+		},
+		DeleteWithoutTimeout: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2SettingDelete(ctx, d, meta))
+		},
 		Importer: &schema.ResourceImporter{
-			State: resourceRancher2SettingImport,
+			StateContext: resourceRancher2SettingImport,
 		},
 		Schema: settingFields(),
 	}
 }
 
-func resourceRancher2SettingCreate(d *schema.ResourceData, meta interface{}) error {
-	client, err := meta.(*Config).ManagementClient()
+func resourceRancher2SettingCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) error {
+	name, ok := d.Get("name").(string)
+	if !ok {
+		return fmt.Errorf("invalid setting name type %T", d.Get("name"))
+	}
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid setting configuration type %T", meta)
+	}
+	client, err := config.settingClientContext(ctx)
 	if err != nil {
 		return err
 	}
+	defer config.closeStaleSettingClient(client)
 
-	// Checking if setting already exist, updating if already exist. setting id = setting name
-	exist, err := client.Setting.ByID(d.Get("name").(string))
+	// Settings use their name as ID; an existing setting is updated instead of recreated.
+	exist, err := config.settingByIDContext(ctx, name)
 	if err == nil {
 		d.SetId(exist.ID)
-		return resourceRancher2SettingUpdate(d, meta)
+		return resourceRancher2SettingUpdate(ctx, d, meta)
 	}
-	if err != nil {
-		if !IsNotFound(err) || IsForbidden(err) {
-			return err
-		}
+	if !resourceLookupNotFound(ctx, err) {
+		return err
 	}
 
 	setting, err := expandSetting(d)
@@ -48,42 +68,50 @@ func resourceRancher2SettingCreate(d *schema.ResourceData, meta interface{}) err
 
 	log.Printf("[INFO] Creating Setting %s", setting.Name)
 
-	newSetting, err := client.Setting.Create(setting)
+	newSetting := &managementClient.Setting{}
+	err = client.Ops.DoCreateContext(ctx, managementClient.SettingType, setting, newSetting)
+	if newSetting.ID != "" {
+		d.SetId(newSetting.ID)
+	}
 	if err != nil {
 		return err
 	}
+	if newSetting.ID == "" {
+		return fmt.Errorf("created setting response has no ID; reconcile the server before retrying")
+	}
 
-	d.SetId(newSetting.ID)
-
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"active"},
-		Refresh:    settingStateRefreshFunc(client, newSetting.ID),
+		Refresh:    settingStateRefreshFunc(ctx, config, newSetting.ID),
 		Timeout:    10 * time.Minute,
 		Delay:      1 * time.Second,
 		MinTimeout: 3 * time.Second,
 	}
-	_, waitErr := stateConf.WaitForState()
+	_, waitErr := stateConf.WaitForStateContext(ctx)
 	if waitErr != nil {
 		return fmt.Errorf(
-			"[ERROR] waiting for setting (%s) to be created: %s", newSetting.ID, waitErr)
+			"[ERROR] waiting for setting (%s) to be created: %w", newSetting.ID, waitErr)
 	}
 
-	return resourceRancher2SettingRead(d, meta)
+	return resourceRancher2SettingRead(ctx, d, meta)
 }
 
-func resourceRancher2SettingRead(d *schema.ResourceData, meta interface{}) error {
+func resourceRancher2SettingRead(ctx context.Context, d *schema.ResourceData, meta interface{}) error {
 	name := d.Get("name").(string)
 	log.Printf("[INFO] Refreshing Rancher2 Setting ID %s", d.Id())
 
-	client, err := meta.(*Config).ManagementClient()
-	if err != nil {
-		return err
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid setting configuration type %T", meta)
 	}
 
-	setting, err := client.Setting.ByID(name)
+	setting, err := config.settingByIDContext(ctx, name)
 	if err != nil {
-		if IsNotFound(err) || IsForbidden(err) {
+		if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
+		if resourceLookupNotFound(ctx, err) {
 			log.Printf("[INFO] Setting ID %s not found.", d.Id())
 			d.SetId("")
 			return nil
@@ -91,22 +119,26 @@ func resourceRancher2SettingRead(d *schema.ResourceData, meta interface{}) error
 		return err
 	}
 
-	err = flattenSetting(d, setting)
-	if err != nil {
-		return err
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("read setting %q: %w", name, err)
 	}
 
-	return nil
+	return flattenSetting(d, setting)
 }
 
-func resourceRancher2SettingUpdate(d *schema.ResourceData, meta interface{}) error {
+func resourceRancher2SettingUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) error {
 	log.Printf("[INFO] Updating Setting ID %s", d.Id())
-	client, err := meta.(*Config).ManagementClient()
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid setting configuration type %T", meta)
+	}
+	client, err := config.settingClientContext(ctx)
 	if err != nil {
 		return err
 	}
+	defer config.closeStaleSettingClient(client)
 
-	setting, err := client.Setting.ByID(d.Id())
+	setting, err := config.settingByIDContext(ctx, d.Id())
 	if err != nil {
 		return err
 	}
@@ -117,39 +149,45 @@ func resourceRancher2SettingUpdate(d *schema.ResourceData, meta interface{}) err
 		"labels":      toMapString(d.Get("labels").(map[string]interface{})),
 	}
 
-	newSetting, err := client.Setting.Update(setting, update)
+	newSetting := &managementClient.Setting{}
+	err = client.Ops.DoUpdateContext(ctx, managementClient.SettingType, &setting.Resource, update, newSetting)
 	if err != nil {
 		return err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"active"},
-		Refresh:    settingStateRefreshFunc(client, newSetting.ID),
+		Refresh:    settingStateRefreshFunc(ctx, config, newSetting.ID),
 		Timeout:    10 * time.Minute,
 		Delay:      1 * time.Second,
 		MinTimeout: 3 * time.Second,
 	}
-	_, waitErr := stateConf.WaitForState()
+	_, waitErr := stateConf.WaitForStateContext(ctx)
 	if waitErr != nil {
 		return fmt.Errorf(
-			"[ERROR] waiting for setting (%s) to be updated: %s", newSetting.ID, waitErr)
+			"[ERROR] waiting for setting (%s) to be updated: %w", newSetting.ID, waitErr)
 	}
 
-	return resourceRancher2SettingRead(d, meta)
+	return resourceRancher2SettingRead(ctx, d, meta)
 }
 
-func resourceRancher2SettingDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceRancher2SettingDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) error {
 	log.Printf("[INFO] Deleting Setting ID %s", d.Id())
 	id := d.Id()
-	client, err := meta.(*Config).ManagementClient()
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid setting configuration type %T", meta)
+	}
+	client, err := config.settingClientContext(ctx)
 	if err != nil {
 		return err
 	}
+	defer config.closeStaleSettingClient(client)
 
-	setting, err := client.Setting.ByID(id)
+	setting, err := config.settingByIDContext(ctx, id)
 	if err != nil {
-		if IsNotFound(err) || IsForbidden(err) {
+		if resourceLookupNotFound(ctx, err) {
 			log.Printf("[INFO] Setting ID %s not found.", id)
 			d.SetId("")
 			return nil
@@ -157,56 +195,67 @@ func resourceRancher2SettingDelete(d *schema.ResourceData, meta interface{}) err
 		return err
 	}
 
-	// Deleting setting if it was cretaed by user
+	// System settings are reset; only user-created settings are deleted.
 	if setting.CreatorID != "" {
-		err = client.Setting.Delete(setting)
+		err = client.Ops.DoResourceDeleteContext(ctx, managementClient.SettingType, &setting.Resource)
 		if err != nil {
-			return fmt.Errorf("Error removing setting: %s", err)
+			return fmt.Errorf("remove setting: %w", err)
 		}
 
 		log.Printf("[DEBUG] Waiting for setting (%s) to be removed", id)
 
-		stateConf := &resource.StateChangeConf{
+		stateConf := &retry.StateChangeConf{
 			Pending:    []string{"active"},
 			Target:     []string{"removed"},
-			Refresh:    settingStateRefreshFunc(client, id),
+			Refresh:    settingStateRefreshFunc(ctx, config, id),
 			Timeout:    10 * time.Minute,
 			Delay:      1 * time.Second,
 			MinTimeout: 3 * time.Second,
 		}
 
-		_, waitErr := stateConf.WaitForState()
+		_, waitErr := stateConf.WaitForStateContext(ctx)
 		if waitErr != nil {
 			return fmt.Errorf(
-				"[ERROR] waiting for setting (%s) to be removed: %s", id, waitErr)
+				"[ERROR] waiting for setting (%s) to be removed: %w", id, waitErr)
 		}
-		// Reseting setting to value = "" if it was cretaed by system
 	} else {
 		err = d.Set("value", "")
 		if err != nil {
 			return err
 		}
 
-		err = resourceRancher2SettingUpdate(d, meta)
+		err = resourceRancher2SettingUpdate(ctx, d, meta)
 		if err != nil {
 			return err
 		}
 	}
 
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	d.SetId("")
 	return nil
 }
 
-// settingStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher Project.
-func settingStateRefreshFunc(client *managementClient.Client, settingID string) resource.StateRefreshFunc {
+// settingStateRefreshFunc polls the setting with the operation's context.
+func settingStateRefreshFunc(ctx context.Context, config *Config, settingID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
-		obj, err := client.Setting.ByID(settingID)
+		obj, err := config.settingByIDContext(ctx, settingID)
 		if err != nil {
-			if IsNotFound(err) || IsForbidden(err) {
+			if resourceLookupNotFound(ctx, err) {
 				return obj, "removed", nil
 			}
 			return nil, "", err
 		}
 		return obj, "active", nil
 	}
+}
+
+func resourceLookupNotFound(ctx context.Context, err error) bool {
+	if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	var lookup *resourceLookupError
+	var apiError *clientbase.APIError
+	return errors.As(err, &lookup) && errors.As(lookup, &apiError) && apiError.StatusCode == http.StatusNotFound
 }

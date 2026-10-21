@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	norman "github.com/rancher/norman/types"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
@@ -31,7 +31,7 @@ func resourceRancher2ClusterV2() *schema.Resource {
 				Version: 0,
 			},
 		},
-		CustomizeDiff: func(d *schema.ResourceDiff, i interface{}) error {
+		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, i interface{}) error {
 			if d.HasChange("rke_config") {
 				oldObj, newObj := d.GetChange("rke_config")
 				oldInterface, oldOk := oldObj.([]interface{})
@@ -76,7 +76,7 @@ func resourceRancher2ClusterV2Resource() *schema.Resource {
 	}
 }
 
-func resourceRancher2ClusterV2StateUpgradeV0(rawState map[string]any, meta interface{}) (map[string]any, error) {
+func resourceRancher2ClusterV2StateUpgradeV0(ctx context.Context, rawState map[string]any, meta interface{}) (map[string]any, error) {
 	if rkeConfigs, ok := rawState["rke_config"].([]any); ok && len(rkeConfigs) > 0 {
 		for i := range rkeConfigs {
 			if rkeConfig, ok := rkeConfigs[i].(map[string]any); ok && len(rkeConfig) > 0 {
@@ -190,7 +190,7 @@ func resourceRancher2ClusterV2Delete(d *schema.ResourceData, meta interface{}) e
 	if err != nil {
 		return err
 	}
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"removed"},
 		Refresh:    clusterV2StateRefreshFunc(meta, cluster.ID),
@@ -210,7 +210,7 @@ func resourceRancher2ClusterV2Delete(d *schema.ResourceData, meta interface{}) e
 		if err != nil {
 			return err
 		}
-		stateConf = &resource.StateChangeConf{
+		stateConf = &retry.StateChangeConf{
 			Pending:    []string{"removing"},
 			Target:     []string{"removed"},
 			Refresh:    clusterStateRefreshFunc(client, v1ClusterName),
@@ -229,7 +229,7 @@ func resourceRancher2ClusterV2Delete(d *schema.ResourceData, meta interface{}) e
 }
 
 // clusterV2StateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher Cluster v2.
-func clusterV2StateRefreshFunc(meta interface{}, objID string) resource.StateRefreshFunc {
+func clusterV2StateRefreshFunc(meta interface{}, objID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := getClusterV2ByID(meta.(*Config), objID)
 		if err != nil {

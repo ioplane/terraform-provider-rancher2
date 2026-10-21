@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/rancher/norman/types"
 )
 
@@ -25,8 +25,8 @@ func dataSourceRancher2Project() *schema.Resource {
 				Required:    true,
 			},
 			"container_resource_limit": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: containerResourceLimitFields(),
@@ -38,8 +38,8 @@ func dataSourceRancher2Project() *schema.Resource {
 				Computed:    true,
 			},
 			"resource_quota": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: projectResourceQuotaFields(),

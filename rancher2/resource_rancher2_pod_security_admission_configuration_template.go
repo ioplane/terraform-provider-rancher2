@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
 
@@ -59,7 +59,7 @@ func resourceRancher2PodSecurityAdmissionConfigurationTemplateRead(d *schema.Res
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		psact, err := client.PodSecurityAdmissionConfigurationTemplate.ByID(d.Id())
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -67,11 +67,11 @@ func resourceRancher2PodSecurityAdmissionConfigurationTemplateRead(d *schema.Res
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = flattenPodSecurityAdmissionConfigurationTemplate(d, psact); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -126,7 +126,7 @@ func resourceRancher2PodSecurityAdmissionConfigurationTemplateDelete(d *schema.R
 		return fmt.Errorf("[ERROR] removing PodSecurityAdmissionConfigurationTemplate: %s", err)
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"removed"},
 		Refresh:    podSecurityAdmissionConfigurationTemplateStateRefreshFunc(client, id),
@@ -147,7 +147,7 @@ func resourceRancher2PodSecurityAdmissionConfigurationTemplateDelete(d *schema.R
 
 // podSecurityAdmissionConfigurationTemplateStateRefreshFunc returns a resource.StateRefreshFunc that is used to watch
 // a Rancher PodSecurityAdmissionConfiguration Template
-func podSecurityAdmissionConfigurationTemplateStateRefreshFunc(client *managementClient.Client, psactID string) resource.StateRefreshFunc {
+func podSecurityAdmissionConfigurationTemplateStateRefreshFunc(client *managementClient.Client, psactID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := client.PodSecurityAdmissionConfigurationTemplate.ByID(psactID)
 		if err != nil {

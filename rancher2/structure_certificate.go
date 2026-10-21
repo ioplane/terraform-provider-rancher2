@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	projectClient "github.com/rancher/rancher/pkg/client/generated/project/v3"
 )
 
@@ -222,7 +222,7 @@ func expandCertificateData(input map[string]interface{}) error {
 		}
 		sum = fmt.Sprintf("%02X", data)
 	}
-	input[projectClient.NamespacedCertificateFieldCertFingerprint] = string(sum[:])
+	input[projectClient.NamespacedCertificateFieldCertFingerprint] = sum
 	input[projectClient.NamespacedCertificateFieldExpiresAt] = certificate.NotAfter.String()
 	input[projectClient.NamespacedCertificateFieldIssuedAt] = certificate.NotBefore.String()
 	input[projectClient.NamespacedCertificateFieldIssuer] = certificate.Issuer.CommonName

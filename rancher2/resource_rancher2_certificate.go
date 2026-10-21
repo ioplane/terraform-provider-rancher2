@@ -2,11 +2,11 @@ package rancher2
 
 import (
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func resourceRancher2Certificate() *schema.Resource {
@@ -29,32 +29,32 @@ func resourceRancher2CertificateCreate(d *schema.ResourceData, meta interface{})
 	_, projectID := splitProjectID(d.Get("project_id").(string))
 	name := d.Get("name").(string)
 
-	return resource.Retry(d.Timeout(schema.TimeoutCreate), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutCreate), func() *retry.RetryError {
 		err := meta.(*Config).ProjectExist(projectID)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		certificate, err := expandCertificate(d)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		log.Printf("[INFO] Creating Certificate %s on Project ID %s", name, projectID)
 
 		newCertificate, err := meta.(*Config).CreateCertificate(certificate)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = flattenCertificate(d, newCertificate)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = resourceRancher2CertificateRead(d, meta)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -68,7 +68,7 @@ func resourceRancher2CertificateRead(d *schema.ResourceData, meta interface{}) e
 
 	log.Printf("[INFO] Refreshing Certificate ID %s", id)
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		certificate, err := meta.(*Config).GetCertificate(id, projectID, namespaceID)
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -76,11 +76,11 @@ func resourceRancher2CertificateRead(d *schema.ResourceData, meta interface{}) e
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err := flattenCertificate(d, certificate); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -94,30 +94,30 @@ func resourceRancher2CertificateUpdate(d *schema.ResourceData, meta interface{})
 
 	log.Printf("[INFO] Updating Certificate ID %s", id)
 
-	return resource.Retry(d.Timeout(schema.TimeoutUpdate), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutUpdate), func() *retry.RetryError {
 		certificate, err := meta.(*Config).GetCertificate(id, projectID, namespaceID)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		update, err := expandCertificate(d)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		newCertificate, err := meta.(*Config).UpdateCertificate(certificate, update)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = flattenCertificate(d, newCertificate)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = resourceRancher2CertificateRead(d, meta)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -131,7 +131,7 @@ func resourceRancher2CertificateDelete(d *schema.ResourceData, meta interface{})
 
 	log.Printf("[INFO] Deleting Certificate ID %s", id)
 
-	return resource.Retry(d.Timeout(schema.TimeoutDelete), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutDelete), func() *retry.RetryError {
 		certificate, err := meta.(*Config).GetCertificate(id, projectID, namespaceID)
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -139,12 +139,12 @@ func resourceRancher2CertificateDelete(d *schema.ResourceData, meta interface{})
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = meta.(*Config).DeleteCertificate(certificate)
 		if err != nil {
-			return resource.NonRetryableError(fmt.Errorf("[ERROR] Error removing Certificate: %s", err))
+			return retry.NonRetryableError(fmt.Errorf("[ERROR] Error removing Certificate: %s", err))
 		}
 
 		d.SetId("")

@@ -1,14 +1,17 @@
 package rancher2
 
 import (
+	"context"
+	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceRancher2Setting() *schema.Resource {
 	return &schema.Resource{
-		Read: dataSourceRancher2SettingRead,
+		ReadWithoutTimeout: dataSourceRancher2SettingReadContext,
 
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -23,22 +26,20 @@ func dataSourceRancher2Setting() *schema.Resource {
 	}
 }
 
-func dataSourceRancher2SettingRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceRancher2SettingReadContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	name := d.Get("name").(string)
 	log.Printf("[INFO] Refreshing Rancher2 Setting: %s", name)
-
-	client, err := meta.(*Config).ManagementClient()
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return diag.FromErr(fmt.Errorf("invalid setting configuration type %T", meta))
+	}
+	setting, err := config.settingByIDContext(ctx, name)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
-
-	setting, err := client.Setting.ByID(name)
-	if err != nil || setting == nil {
-		return err
+	if err := d.Set("value", setting.Value); err != nil {
+		return diag.FromErr(fmt.Errorf("set setting %q value: %w", name, err))
 	}
-
 	d.SetId(name)
-	d.Set("value", setting.Value)
-
 	return nil
 }

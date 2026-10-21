@@ -1,0 +1,1919 @@
+{
+  "ChartActionOutput": {
+    "fixtures": {
+      "empty": {
+        "json": "{}",
+        "roundtrip": "{}"
+      },
+      "field:OperationName": {
+        "json": "{\"operationName\":\"value\"}",
+        "roundtrip": "{\"operationName\":\"value\"}"
+      },
+      "field:OperationNamespace": {
+        "json": "{\"operationNamespace\":\"value\"}",
+        "roundtrip": "{\"operationNamespace\":\"value\"}"
+      },
+      "populated": {
+        "json": "{\"operationName\":\"value\",\"operationNamespace\":\"value\"}",
+        "roundtrip": "{\"operationName\":\"value\",\"operationNamespace\":\"value\"}"
+      },
+      "zero": {
+        "json": "{}",
+        "roundtrip": "{}"
+      }
+    },
+    "invalid": {
+      "[]": "json: cannot unmarshal array into Go value of type types.ChartActionOutput",
+      "{": "unexpected end of JSON input",
+      "{\"charts\":\"bad\"}": "",
+      "{\"timeout\":17}": ""
+    },
+    "invalid_details": {
+      "[]": {
+        "errorKind": "ptr",
+        "errorType": "*json.UnmarshalTypeError",
+        "field": "",
+        "offset": 1,
+        "struct": "",
+        "targetKind": "struct",
+        "targetName": "ChartActionOutput",
+        "targetPkgPath": "github.com/rancher/rancher/pkg/api/steve/catalog/types",
+        "targetType": "types.ChartActionOutput",
+        "value": "array"
+      },
+      "{": {
+        "errorKind": "ptr",
+        "errorType": "*json.SyntaxError",
+        "offset": 1
+      }
+    },
+    "invalid_types": {
+      "[]": "*json.UnmarshalTypeError",
+      "{": "*json.SyntaxError"
+    },
+    "metadata": {
+      "fields": [
+        {
+          "anonymous": false,
+          "index": [
+            0
+          ],
+          "name": "OperationName",
+          "tag": "json:\"operationName,omitempty\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            1
+          ],
+          "name": "OperationNamespace",
+          "tag": "json:\"operationNamespace,omitempty\"",
+          "type": "string"
+        }
+      ],
+      "methods": [],
+      "name": "$catalog.ChartActionOutput"
+    },
+    "unmarshal_fixtures": {
+      "emptyContainers": {
+        "containerState": {},
+        "input": "{\"values\":{},\"questions\":{},\"chart\":{},\"annotations\":{},\"charts\":[],\"operationTolerations\":[],\"timeout\":\"0s\"}",
+        "roundtrip": "{}"
+      },
+      "nilContainers": {
+        "containerState": {},
+        "input": "{\"values\":null,\"questions\":null,\"chart\":null,\"annotations\":null,\"charts\":null,\"operationTolerations\":null,\"timeout\":null}",
+        "roundtrip": "{}"
+      },
+      "null": {
+        "containerState": {},
+        "input": "null",
+        "roundtrip": "{}"
+      }
+    }
+  },
+  "ChartInfo": {
+    "fixtures": {
+      "empty": {
+        "json": "{}",
+        "roundtrip": "{}"
+      },
+      "field:APPReadme": {
+        "json": "{\"appReadme\":\"value\"}",
+        "roundtrip": "{\"appReadme\":\"value\"}"
+      },
+      "field:Chart": {
+        "json": "{\"chart\":{\"value\":{\"nested\":[\"text\",42,true,null]}}}",
+        "roundtrip": "{\"chart\":{\"value\":{\"nested\":[\"text\",42,true,null]}}}"
+      },
+      "field:Questions": {
+        "json": "{\"questions\":{\"value\":{\"nested\":[\"text\",42,true,null]}}}",
+        "roundtrip": "{\"questions\":{\"value\":{\"nested\":[\"text\",42,true,null]}}}"
+      },
+      "field:Readme": {
+        "json": "{\"readme\":\"value\"}",
+        "roundtrip": "{\"readme\":\"value\"}"
+      },
+      "field:Values": {
+        "json": "{\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}}}",
+        "roundtrip": "{\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}}}"
+      },
+      "populated": {
+        "json": "{\"readme\":\"value\",\"appReadme\":\"value\",\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"questions\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"chart\":{\"value\":{\"nested\":[\"text\",42,true,null]}}}",
+        "roundtrip": "{\"readme\":\"value\",\"appReadme\":\"value\",\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"questions\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"chart\":{\"value\":{\"nested\":[\"text\",42,true,null]}}}"
+      },
+      "zero": {
+        "json": "{}",
+        "roundtrip": "{}"
+      }
+    },
+    "invalid": {
+      "[]": "json: cannot unmarshal array into Go value of type types.ChartInfo",
+      "{": "unexpected end of JSON input",
+      "{\"charts\":\"bad\"}": "",
+      "{\"timeout\":17}": ""
+    },
+    "invalid_details": {
+      "[]": {
+        "errorKind": "ptr",
+        "errorType": "*json.UnmarshalTypeError",
+        "field": "",
+        "offset": 1,
+        "struct": "",
+        "targetKind": "struct",
+        "targetName": "ChartInfo",
+        "targetPkgPath": "github.com/rancher/rancher/pkg/api/steve/catalog/types",
+        "targetType": "types.ChartInfo",
+        "value": "array"
+      },
+      "{": {
+        "errorKind": "ptr",
+        "errorType": "*json.SyntaxError",
+        "offset": 1
+      }
+    },
+    "invalid_types": {
+      "[]": "*json.UnmarshalTypeError",
+      "{": "*json.SyntaxError"
+    },
+    "metadata": {
+      "fields": [
+        {
+          "anonymous": false,
+          "index": [
+            0
+          ],
+          "name": "Readme",
+          "tag": "json:\"readme,omitempty\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            1
+          ],
+          "name": "APPReadme",
+          "tag": "json:\"appReadme,omitempty\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            2
+          ],
+          "name": "Values",
+          "tag": "json:\"values,omitempty\"",
+          "type": "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3.MapStringInterface"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            3
+          ],
+          "name": "Questions",
+          "tag": "json:\"questions,omitempty\"",
+          "type": "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3.MapStringInterface"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            4
+          ],
+          "name": "Chart",
+          "tag": "json:\"chart,omitempty\"",
+          "type": "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3.MapStringInterface"
+        }
+      ],
+      "methods": [],
+      "name": "$catalog.ChartInfo"
+    },
+    "unmarshal_fixtures": {
+      "emptyContainers": {
+        "containerState": {
+          "Chart": {
+            "length": 0,
+            "nil": false
+          },
+          "Questions": {
+            "length": 0,
+            "nil": false
+          },
+          "Values": {
+            "length": 0,
+            "nil": false
+          }
+        },
+        "input": "{\"values\":{},\"questions\":{},\"chart\":{},\"annotations\":{},\"charts\":[],\"operationTolerations\":[],\"timeout\":\"0s\"}",
+        "roundtrip": "{}"
+      },
+      "nilContainers": {
+        "containerState": {
+          "Chart": {
+            "length": 0,
+            "nil": true
+          },
+          "Questions": {
+            "length": 0,
+            "nil": true
+          },
+          "Values": {
+            "length": 0,
+            "nil": true
+          }
+        },
+        "input": "{\"values\":null,\"questions\":null,\"chart\":null,\"annotations\":null,\"charts\":null,\"operationTolerations\":null,\"timeout\":null}",
+        "roundtrip": "{}"
+      },
+      "null": {
+        "containerState": {
+          "Chart": {
+            "length": 0,
+            "nil": true
+          },
+          "Questions": {
+            "length": 0,
+            "nil": true
+          },
+          "Values": {
+            "length": 0,
+            "nil": true
+          }
+        },
+        "input": "null",
+        "roundtrip": "{}"
+      }
+    }
+  },
+  "ChartInstall": {
+    "fixtures": {
+      "empty": {
+        "json": "{}",
+        "roundtrip": "{}"
+      },
+      "field:Annotations": {
+        "json": "{\"annotations\":{\"value\":\"value\"}}",
+        "roundtrip": "{\"annotations\":{\"value\":\"value\"}}"
+      },
+      "field:ChartName": {
+        "json": "{\"chartName\":\"value\"}",
+        "roundtrip": "{\"chartName\":\"value\"}"
+      },
+      "field:Description": {
+        "json": "{\"description\":\"value\"}",
+        "roundtrip": "{\"description\":\"value\"}"
+      },
+      "field:ReleaseName": {
+        "json": "{\"releaseName\":\"value\"}",
+        "roundtrip": "{\"releaseName\":\"value\"}"
+      },
+      "field:Values": {
+        "json": "{\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}}}",
+        "roundtrip": "{\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}}}"
+      },
+      "field:Version": {
+        "json": "{\"version\":\"value\"}",
+        "roundtrip": "{\"version\":\"value\"}"
+      },
+      "populated": {
+        "json": "{\"chartName\":\"value\",\"version\":\"value\",\"releaseName\":\"value\",\"description\":\"value\",\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"annotations\":{\"value\":\"value\"}}",
+        "roundtrip": "{\"chartName\":\"value\",\"version\":\"value\",\"releaseName\":\"value\",\"description\":\"value\",\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"annotations\":{\"value\":\"value\"}}"
+      },
+      "zero": {
+        "json": "{}",
+        "roundtrip": "{}"
+      }
+    },
+    "invalid": {
+      "[]": "json: cannot unmarshal array into Go value of type types.ChartInstall",
+      "{": "unexpected end of JSON input",
+      "{\"charts\":\"bad\"}": "",
+      "{\"timeout\":17}": ""
+    },
+    "invalid_details": {
+      "[]": {
+        "errorKind": "ptr",
+        "errorType": "*json.UnmarshalTypeError",
+        "field": "",
+        "offset": 1,
+        "struct": "",
+        "targetKind": "struct",
+        "targetName": "ChartInstall",
+        "targetPkgPath": "github.com/rancher/rancher/pkg/api/steve/catalog/types",
+        "targetType": "types.ChartInstall",
+        "value": "array"
+      },
+      "{": {
+        "errorKind": "ptr",
+        "errorType": "*json.SyntaxError",
+        "offset": 1
+      }
+    },
+    "invalid_types": {
+      "[]": "*json.UnmarshalTypeError",
+      "{": "*json.SyntaxError"
+    },
+    "metadata": {
+      "fields": [
+        {
+          "anonymous": false,
+          "index": [
+            0
+          ],
+          "name": "ChartName",
+          "tag": "json:\"chartName,omitempty\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            1
+          ],
+          "name": "Version",
+          "tag": "json:\"version,omitempty\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            2
+          ],
+          "name": "ReleaseName",
+          "tag": "json:\"releaseName,omitempty\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            3
+          ],
+          "name": "Description",
+          "tag": "json:\"description,omitempty\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            4
+          ],
+          "name": "Values",
+          "tag": "json:\"values,omitempty\"",
+          "type": "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3.MapStringInterface"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            5
+          ],
+          "name": "Annotations",
+          "tag": "json:\"annotations,omitempty\"",
+          "type": "map[string]string"
+        }
+      ],
+      "methods": [],
+      "name": "$catalog.ChartInstall"
+    },
+    "unmarshal_fixtures": {
+      "emptyContainers": {
+        "containerState": {
+          "Annotations": {
+            "length": 0,
+            "nil": false
+          },
+          "Values": {
+            "length": 0,
+            "nil": false
+          }
+        },
+        "input": "{\"values\":{},\"questions\":{},\"chart\":{},\"annotations\":{},\"charts\":[],\"operationTolerations\":[],\"timeout\":\"0s\"}",
+        "roundtrip": "{}"
+      },
+      "nilContainers": {
+        "containerState": {
+          "Annotations": {
+            "length": 0,
+            "nil": true
+          },
+          "Values": {
+            "length": 0,
+            "nil": true
+          }
+        },
+        "input": "{\"values\":null,\"questions\":null,\"chart\":null,\"annotations\":null,\"charts\":null,\"operationTolerations\":null,\"timeout\":null}",
+        "roundtrip": "{}"
+      },
+      "null": {
+        "containerState": {
+          "Annotations": {
+            "length": 0,
+            "nil": true
+          },
+          "Values": {
+            "length": 0,
+            "nil": true
+          }
+        },
+        "input": "null",
+        "roundtrip": "{}"
+      }
+    }
+  },
+  "ChartInstallAction": {
+    "fixtures": {
+      "empty": {
+        "json": "{\"timeout\":\"0s\"}",
+        "roundtrip": "{\"timeout\":\"0s\"}"
+      },
+      "field:AutomaticCPTolerations": {
+        "json": "{\"automaticCPTolerations\":true}",
+        "roundtrip": "{\"automaticCPTolerations\":true}"
+      },
+      "field:Charts": {
+        "json": "{\"charts\":[{\"chartName\":\"value\",\"version\":\"value\",\"releaseName\":\"value\",\"description\":\"value\",\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"annotations\":{\"value\":\"value\"}}]}",
+        "roundtrip": "{\"charts\":[{\"chartName\":\"value\",\"version\":\"value\",\"releaseName\":\"value\",\"description\":\"value\",\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"annotations\":{\"value\":\"value\"}}]}"
+      },
+      "field:DisableHooks": {
+        "json": "{\"noHooks\":true}",
+        "roundtrip": "{\"noHooks\":true}"
+      },
+      "field:DisableOpenAPIValidation": {
+        "json": "{\"disableOpenAPIValidation\":true}",
+        "roundtrip": "{\"disableOpenAPIValidation\":true}"
+      },
+      "field:Namespace": {
+        "json": "{\"namespace\":\"value\"}",
+        "roundtrip": "{\"namespace\":\"value\"}"
+      },
+      "field:OperationTolerations": {
+        "json": "{\"operationTolerations\":[{\"key\":\"value\",\"operator\":\"value\",\"value\":\"value\",\"effect\":\"value\",\"tolerationSeconds\":42}]}",
+        "roundtrip": "{\"operationTolerations\":[{\"key\":\"value\",\"operator\":\"value\",\"value\":\"value\",\"effect\":\"value\",\"tolerationSeconds\":42}]}"
+      },
+      "field:ProjectID": {
+        "json": "{\"projectId\":\"value\"}",
+        "roundtrip": "{\"projectId\":\"value\"}"
+      },
+      "field:SkipSchemaValidation": {
+        "json": "{\"skipSchemaValidation\":true}",
+        "roundtrip": "{\"skipSchemaValidation\":true}"
+      },
+      "field:Timeout": {
+        "json": "{\"timeout\":\"42ns\"}",
+        "roundtrip": "{\"timeout\":\"42ns\"}"
+      },
+      "field:Wait": {
+        "json": "{\"wait\":true}",
+        "roundtrip": "{\"wait\":true}"
+      },
+      "populated": {
+        "json": "{\"timeout\":\"42ns\",\"wait\":true,\"noHooks\":true,\"disableOpenAPIValidation\":true,\"skipSchemaValidation\":true,\"namespace\":\"value\",\"projectId\":\"value\",\"operationTolerations\":[{\"key\":\"value\",\"operator\":\"value\",\"value\":\"value\",\"effect\":\"value\",\"tolerationSeconds\":42}],\"automaticCPTolerations\":true,\"charts\":[{\"chartName\":\"value\",\"version\":\"value\",\"releaseName\":\"value\",\"description\":\"value\",\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"annotations\":{\"value\":\"value\"}}]}",
+        "roundtrip": "{\"timeout\":\"42ns\",\"wait\":true,\"noHooks\":true,\"disableOpenAPIValidation\":true,\"skipSchemaValidation\":true,\"namespace\":\"value\",\"projectId\":\"value\",\"operationTolerations\":[{\"key\":\"value\",\"operator\":\"value\",\"value\":\"value\",\"effect\":\"value\",\"tolerationSeconds\":42}],\"automaticCPTolerations\":true,\"charts\":[{\"chartName\":\"value\",\"version\":\"value\",\"releaseName\":\"value\",\"description\":\"value\",\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"annotations\":{\"value\":\"value\"}}]}"
+      },
+      "zero": {
+        "json": "{}",
+        "roundtrip": "{}"
+      }
+    },
+    "invalid": {
+      "[]": "json: cannot unmarshal array into Go value of type types.ChartInstallAction",
+      "{": "unexpected end of JSON input",
+      "{\"charts\":\"bad\"}": "json: cannot unmarshal string into Go struct field ChartInstallAction.charts of type []types.ChartInstall",
+      "{\"timeout\":17}": "json: cannot unmarshal number into Go value of type string"
+    },
+    "invalid_details": {
+      "[]": {
+        "errorKind": "ptr",
+        "errorType": "*json.UnmarshalTypeError",
+        "field": "",
+        "offset": 1,
+        "struct": "",
+        "targetKind": "struct",
+        "targetName": "ChartInstallAction",
+        "targetPkgPath": "github.com/rancher/rancher/pkg/api/steve/catalog/types",
+        "targetType": "types.ChartInstallAction",
+        "value": "array"
+      },
+      "{": {
+        "errorKind": "ptr",
+        "errorType": "*json.SyntaxError",
+        "offset": 1
+      },
+      "{\"charts\":\"bad\"}": {
+        "errorKind": "ptr",
+        "errorType": "*json.UnmarshalTypeError",
+        "field": "charts",
+        "offset": 15,
+        "struct": "ChartInstallAction",
+        "targetKind": "slice",
+        "targetName": "",
+        "targetPkgPath": "",
+        "targetType": "[]types.ChartInstall",
+        "value": "string"
+      },
+      "{\"timeout\":17}": {
+        "errorKind": "ptr",
+        "errorType": "*json.UnmarshalTypeError",
+        "field": "",
+        "offset": 2,
+        "struct": "",
+        "targetKind": "string",
+        "targetName": "string",
+        "targetPkgPath": "",
+        "targetType": "string",
+        "value": "number"
+      }
+    },
+    "invalid_types": {
+      "[]": "*json.UnmarshalTypeError",
+      "{": "*json.SyntaxError",
+      "{\"charts\":\"bad\"}": "*json.UnmarshalTypeError",
+      "{\"timeout\":17}": "*json.UnmarshalTypeError"
+    },
+    "metadata": {
+      "fields": [
+        {
+          "anonymous": false,
+          "index": [
+            0
+          ],
+          "name": "Timeout",
+          "tag": "json:\"timeout,omitempty\"",
+          "type": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            1
+          ],
+          "name": "Wait",
+          "tag": "json:\"wait,omitempty\"",
+          "type": "bool"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            2
+          ],
+          "name": "DisableHooks",
+          "tag": "json:\"noHooks,omitempty\"",
+          "type": "bool"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            3
+          ],
+          "name": "DisableOpenAPIValidation",
+          "tag": "json:\"disableOpenAPIValidation,omitempty\"",
+          "type": "bool"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            4
+          ],
+          "name": "SkipSchemaValidation",
+          "tag": "json:\"skipSchemaValidation,omitempty\"",
+          "type": "bool"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            5
+          ],
+          "name": "Namespace",
+          "tag": "json:\"namespace,omitempty\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            6
+          ],
+          "name": "ProjectID",
+          "tag": "json:\"projectId,omitempty\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            7
+          ],
+          "name": "OperationTolerations",
+          "tag": "json:\"operationTolerations,omitempty\"",
+          "type": "[]k8s.io/api/core/v1.Toleration"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            8
+          ],
+          "name": "AutomaticCPTolerations",
+          "tag": "json:\"automaticCPTolerations,omitempty\"",
+          "type": "bool"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            9
+          ],
+          "name": "Charts",
+          "tag": "json:\"charts,omitempty\"",
+          "type": "[]$catalog.ChartInstall"
+        }
+      ],
+      "methods": [],
+      "name": "$catalog.ChartInstallAction"
+    },
+    "unmarshal_fixtures": {
+      "emptyContainers": {
+        "containerState": {
+          "Charts": {
+            "length": 0,
+            "nil": false
+          },
+          "OperationTolerations": {
+            "length": 0,
+            "nil": false
+          },
+          "Timeout": {
+            "nil": false
+          }
+        },
+        "input": "{\"values\":{},\"questions\":{},\"chart\":{},\"annotations\":{},\"charts\":[],\"operationTolerations\":[],\"timeout\":\"0s\"}",
+        "roundtrip": "{\"timeout\":\"0s\"}"
+      },
+      "nilContainers": {
+        "containerState": {
+          "Charts": {
+            "length": 0,
+            "nil": true
+          },
+          "OperationTolerations": {
+            "length": 0,
+            "nil": true
+          },
+          "Timeout": {
+            "nil": true
+          }
+        },
+        "input": "{\"values\":null,\"questions\":null,\"chart\":null,\"annotations\":null,\"charts\":null,\"operationTolerations\":null,\"timeout\":null}",
+        "roundtrip": "{}"
+      },
+      "null": {
+        "containerState": {
+          "Charts": {
+            "length": 0,
+            "nil": true
+          },
+          "OperationTolerations": {
+            "length": 0,
+            "nil": true
+          },
+          "Timeout": {
+            "nil": true
+          }
+        },
+        "input": "null",
+        "roundtrip": "{}"
+      }
+    }
+  },
+  "ChartUpgrade": {
+    "fixtures": {
+      "empty": {
+        "json": "{}",
+        "roundtrip": "{}"
+      },
+      "field:Annotations": {
+        "json": "{\"annotations\":{\"value\":\"value\"}}",
+        "roundtrip": "{\"annotations\":{\"value\":\"value\"}}"
+      },
+      "field:ChartName": {
+        "json": "{\"chartName\":\"value\"}",
+        "roundtrip": "{\"chartName\":\"value\"}"
+      },
+      "field:Description": {
+        "json": "{\"description\":\"value\"}",
+        "roundtrip": "{\"description\":\"value\"}"
+      },
+      "field:Force": {
+        "json": "{\"force\":true}",
+        "roundtrip": "{\"force\":true}"
+      },
+      "field:ReleaseName": {
+        "json": "{\"releaseName\":\"value\"}",
+        "roundtrip": "{\"releaseName\":\"value\"}"
+      },
+      "field:ResetValues": {
+        "json": "{\"resetValues\":true}",
+        "roundtrip": "{\"resetValues\":true}"
+      },
+      "field:Values": {
+        "json": "{\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}}}",
+        "roundtrip": "{\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}}}"
+      },
+      "field:Version": {
+        "json": "{\"version\":\"value\"}",
+        "roundtrip": "{\"version\":\"value\"}"
+      },
+      "populated": {
+        "json": "{\"chartName\":\"value\",\"version\":\"value\",\"releaseName\":\"value\",\"force\":true,\"resetValues\":true,\"description\":\"value\",\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"annotations\":{\"value\":\"value\"}}",
+        "roundtrip": "{\"chartName\":\"value\",\"version\":\"value\",\"releaseName\":\"value\",\"force\":true,\"resetValues\":true,\"description\":\"value\",\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"annotations\":{\"value\":\"value\"}}"
+      },
+      "zero": {
+        "json": "{}",
+        "roundtrip": "{}"
+      }
+    },
+    "invalid": {
+      "[]": "json: cannot unmarshal array into Go value of type types.ChartUpgrade",
+      "{": "unexpected end of JSON input",
+      "{\"charts\":\"bad\"}": "",
+      "{\"timeout\":17}": ""
+    },
+    "invalid_details": {
+      "[]": {
+        "errorKind": "ptr",
+        "errorType": "*json.UnmarshalTypeError",
+        "field": "",
+        "offset": 1,
+        "struct": "",
+        "targetKind": "struct",
+        "targetName": "ChartUpgrade",
+        "targetPkgPath": "github.com/rancher/rancher/pkg/api/steve/catalog/types",
+        "targetType": "types.ChartUpgrade",
+        "value": "array"
+      },
+      "{": {
+        "errorKind": "ptr",
+        "errorType": "*json.SyntaxError",
+        "offset": 1
+      }
+    },
+    "invalid_types": {
+      "[]": "*json.UnmarshalTypeError",
+      "{": "*json.SyntaxError"
+    },
+    "metadata": {
+      "fields": [
+        {
+          "anonymous": false,
+          "index": [
+            0
+          ],
+          "name": "ChartName",
+          "tag": "json:\"chartName,omitempty\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            1
+          ],
+          "name": "Version",
+          "tag": "json:\"version,omitempty\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            2
+          ],
+          "name": "ReleaseName",
+          "tag": "json:\"releaseName,omitempty\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            3
+          ],
+          "name": "Force",
+          "tag": "json:\"force,omitempty\"",
+          "type": "bool"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            4
+          ],
+          "name": "ResetValues",
+          "tag": "json:\"resetValues,omitempty\"",
+          "type": "bool"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            5
+          ],
+          "name": "Description",
+          "tag": "json:\"description,omitempty\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            6
+          ],
+          "name": "Values",
+          "tag": "json:\"values,omitempty\"",
+          "type": "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3.MapStringInterface"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            7
+          ],
+          "name": "Annotations",
+          "tag": "json:\"annotations,omitempty\"",
+          "type": "map[string]string"
+        }
+      ],
+      "methods": [],
+      "name": "$catalog.ChartUpgrade"
+    },
+    "unmarshal_fixtures": {
+      "emptyContainers": {
+        "containerState": {
+          "Annotations": {
+            "length": 0,
+            "nil": false
+          },
+          "Values": {
+            "length": 0,
+            "nil": false
+          }
+        },
+        "input": "{\"values\":{},\"questions\":{},\"chart\":{},\"annotations\":{},\"charts\":[],\"operationTolerations\":[],\"timeout\":\"0s\"}",
+        "roundtrip": "{}"
+      },
+      "nilContainers": {
+        "containerState": {
+          "Annotations": {
+            "length": 0,
+            "nil": true
+          },
+          "Values": {
+            "length": 0,
+            "nil": true
+          }
+        },
+        "input": "{\"values\":null,\"questions\":null,\"chart\":null,\"annotations\":null,\"charts\":null,\"operationTolerations\":null,\"timeout\":null}",
+        "roundtrip": "{}"
+      },
+      "null": {
+        "containerState": {
+          "Annotations": {
+            "length": 0,
+            "nil": true
+          },
+          "Values": {
+            "length": 0,
+            "nil": true
+          }
+        },
+        "input": "null",
+        "roundtrip": "{}"
+      }
+    }
+  },
+  "ChartUpgradeAction": {
+    "fixtures": {
+      "empty": {
+        "json": "{\"timeout\":\"0s\"}",
+        "roundtrip": "{\"timeout\":\"0s\"}"
+      },
+      "field:AutomaticCPTolerations": {
+        "json": "{\"automaticCPTolerations\":true}",
+        "roundtrip": "{\"automaticCPTolerations\":true}"
+      },
+      "field:Charts": {
+        "json": "{\"charts\":[{\"chartName\":\"value\",\"version\":\"value\",\"releaseName\":\"value\",\"force\":true,\"resetValues\":true,\"description\":\"value\",\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"annotations\":{\"value\":\"value\"}}]}",
+        "roundtrip": "{\"charts\":[{\"chartName\":\"value\",\"version\":\"value\",\"releaseName\":\"value\",\"force\":true,\"resetValues\":true,\"description\":\"value\",\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"annotations\":{\"value\":\"value\"}}]}"
+      },
+      "field:CleanupOnFail": {
+        "json": "{\"cleanupOnFail\":true}",
+        "roundtrip": "{\"cleanupOnFail\":true}"
+      },
+      "field:DisableHooks": {
+        "json": "{\"noHooks\":true}",
+        "roundtrip": "{\"noHooks\":true}"
+      },
+      "field:DisableOpenAPIValidation": {
+        "json": "{\"disableOpenAPIValidation\":true}",
+        "roundtrip": "{\"disableOpenAPIValidation\":true}"
+      },
+      "field:Force": {
+        "json": "{\"force\":true}",
+        "roundtrip": "{\"force\":true}"
+      },
+      "field:Install": {
+        "json": "{\"install\":true}",
+        "roundtrip": "{\"install\":true}"
+      },
+      "field:MaxHistory": {
+        "json": "{\"historyMax\":42}",
+        "roundtrip": "{\"historyMax\":42}"
+      },
+      "field:Namespace": {
+        "json": "{\"namespace\":\"value\"}",
+        "roundtrip": "{\"namespace\":\"value\"}"
+      },
+      "field:OperationTolerations": {
+        "json": "{\"operationTolerations\":[{\"key\":\"value\",\"operator\":\"value\",\"value\":\"value\",\"effect\":\"value\",\"tolerationSeconds\":42}]}",
+        "roundtrip": "{\"operationTolerations\":[{\"key\":\"value\",\"operator\":\"value\",\"value\":\"value\",\"effect\":\"value\",\"tolerationSeconds\":42}]}"
+      },
+      "field:SkipSchemaValidation": {
+        "json": "{\"skipSchemaValidation\":true}",
+        "roundtrip": "{\"skipSchemaValidation\":true}"
+      },
+      "field:TakeOwnership": {
+        "json": "{\"takeOwnership\":true}",
+        "roundtrip": "{\"takeOwnership\":true}"
+      },
+      "field:Timeout": {
+        "json": "{\"timeout\":\"42ns\"}",
+        "roundtrip": "{\"timeout\":\"42ns\"}"
+      },
+      "field:Wait": {
+        "json": "{\"wait\":true}",
+        "roundtrip": "{\"wait\":true}"
+      },
+      "populated": {
+        "json": "{\"timeout\":\"42ns\",\"wait\":true,\"noHooks\":true,\"disableOpenAPIValidation\":true,\"skipSchemaValidation\":true,\"force\":true,\"takeOwnership\":true,\"historyMax\":42,\"install\":true,\"namespace\":\"value\",\"cleanupOnFail\":true,\"charts\":[{\"chartName\":\"value\",\"version\":\"value\",\"releaseName\":\"value\",\"force\":true,\"resetValues\":true,\"description\":\"value\",\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"annotations\":{\"value\":\"value\"}}],\"operationTolerations\":[{\"key\":\"value\",\"operator\":\"value\",\"value\":\"value\",\"effect\":\"value\",\"tolerationSeconds\":42}],\"automaticCPTolerations\":true}",
+        "roundtrip": "{\"timeout\":\"42ns\",\"wait\":true,\"noHooks\":true,\"disableOpenAPIValidation\":true,\"skipSchemaValidation\":true,\"force\":true,\"takeOwnership\":true,\"historyMax\":42,\"install\":true,\"namespace\":\"value\",\"cleanupOnFail\":true,\"charts\":[{\"chartName\":\"value\",\"version\":\"value\",\"releaseName\":\"value\",\"force\":true,\"resetValues\":true,\"description\":\"value\",\"values\":{\"value\":{\"nested\":[\"text\",42,true,null]}},\"annotations\":{\"value\":\"value\"}}],\"operationTolerations\":[{\"key\":\"value\",\"operator\":\"value\",\"value\":\"value\",\"effect\":\"value\",\"tolerationSeconds\":42}],\"automaticCPTolerations\":true}"
+      },
+      "zero": {
+        "json": "{}",
+        "roundtrip": "{}"
+      }
+    },
+    "invalid": {
+      "[]": "json: cannot unmarshal array into Go value of type types.ChartUpgradeAction",
+      "{": "unexpected end of JSON input",
+      "{\"charts\":\"bad\"}": "json: cannot unmarshal string into Go struct field ChartUpgradeAction.charts of type []types.ChartUpgrade",
+      "{\"timeout\":17}": "json: cannot unmarshal number into Go value of type string"
+    },
+    "invalid_details": {
+      "[]": {
+        "errorKind": "ptr",
+        "errorType": "*json.UnmarshalTypeError",
+        "field": "",
+        "offset": 1,
+        "struct": "",
+        "targetKind": "struct",
+        "targetName": "ChartUpgradeAction",
+        "targetPkgPath": "github.com/rancher/rancher/pkg/api/steve/catalog/types",
+        "targetType": "types.ChartUpgradeAction",
+        "value": "array"
+      },
+      "{": {
+        "errorKind": "ptr",
+        "errorType": "*json.SyntaxError",
+        "offset": 1
+      },
+      "{\"charts\":\"bad\"}": {
+        "errorKind": "ptr",
+        "errorType": "*json.UnmarshalTypeError",
+        "field": "charts",
+        "offset": 15,
+        "struct": "ChartUpgradeAction",
+        "targetKind": "slice",
+        "targetName": "",
+        "targetPkgPath": "",
+        "targetType": "[]types.ChartUpgrade",
+        "value": "string"
+      },
+      "{\"timeout\":17}": {
+        "errorKind": "ptr",
+        "errorType": "*json.UnmarshalTypeError",
+        "field": "",
+        "offset": 2,
+        "struct": "",
+        "targetKind": "string",
+        "targetName": "string",
+        "targetPkgPath": "",
+        "targetType": "string",
+        "value": "number"
+      }
+    },
+    "invalid_types": {
+      "[]": "*json.UnmarshalTypeError",
+      "{": "*json.SyntaxError",
+      "{\"charts\":\"bad\"}": "*json.UnmarshalTypeError",
+      "{\"timeout\":17}": "*json.UnmarshalTypeError"
+    },
+    "metadata": {
+      "fields": [
+        {
+          "anonymous": false,
+          "index": [
+            0
+          ],
+          "name": "Timeout",
+          "tag": "json:\"timeout,omitempty\"",
+          "type": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            1
+          ],
+          "name": "Wait",
+          "tag": "json:\"wait,omitempty\"",
+          "type": "bool"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            2
+          ],
+          "name": "DisableHooks",
+          "tag": "json:\"noHooks,omitempty\"",
+          "type": "bool"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            3
+          ],
+          "name": "DisableOpenAPIValidation",
+          "tag": "json:\"disableOpenAPIValidation,omitempty\"",
+          "type": "bool"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            4
+          ],
+          "name": "SkipSchemaValidation",
+          "tag": "json:\"skipSchemaValidation,omitempty\"",
+          "type": "bool"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            5
+          ],
+          "name": "Force",
+          "tag": "json:\"force,omitempty\"",
+          "type": "bool"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            6
+          ],
+          "name": "TakeOwnership",
+          "tag": "json:\"takeOwnership,omitempty\"",
+          "type": "bool"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            7
+          ],
+          "name": "MaxHistory",
+          "tag": "json:\"historyMax,omitempty\"",
+          "type": "int"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            8
+          ],
+          "name": "Install",
+          "tag": "json:\"install,omitempty\"",
+          "type": "bool"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            9
+          ],
+          "name": "Namespace",
+          "tag": "json:\"namespace,omitempty\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            10
+          ],
+          "name": "CleanupOnFail",
+          "tag": "json:\"cleanupOnFail,omitempty\"",
+          "type": "bool"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            11
+          ],
+          "name": "Charts",
+          "tag": "json:\"charts,omitempty\"",
+          "type": "[]$catalog.ChartUpgrade"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            12
+          ],
+          "name": "OperationTolerations",
+          "tag": "json:\"operationTolerations,omitempty\"",
+          "type": "[]k8s.io/api/core/v1.Toleration"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            13
+          ],
+          "name": "AutomaticCPTolerations",
+          "tag": "json:\"automaticCPTolerations,omitempty\"",
+          "type": "bool"
+        }
+      ],
+      "methods": [],
+      "name": "$catalog.ChartUpgradeAction"
+    },
+    "unmarshal_fixtures": {
+      "emptyContainers": {
+        "containerState": {
+          "Charts": {
+            "length": 0,
+            "nil": false
+          },
+          "OperationTolerations": {
+            "length": 0,
+            "nil": false
+          },
+          "Timeout": {
+            "nil": false
+          }
+        },
+        "input": "{\"values\":{},\"questions\":{},\"chart\":{},\"annotations\":{},\"charts\":[],\"operationTolerations\":[],\"timeout\":\"0s\"}",
+        "roundtrip": "{\"timeout\":\"0s\"}"
+      },
+      "nilContainers": {
+        "containerState": {
+          "Charts": {
+            "length": 0,
+            "nil": true
+          },
+          "OperationTolerations": {
+            "length": 0,
+            "nil": true
+          },
+          "Timeout": {
+            "nil": true
+          }
+        },
+        "input": "{\"values\":null,\"questions\":null,\"chart\":null,\"annotations\":null,\"charts\":null,\"operationTolerations\":null,\"timeout\":null}",
+        "roundtrip": "{}"
+      },
+      "null": {
+        "containerState": {
+          "Charts": {
+            "length": 0,
+            "nil": true
+          },
+          "OperationTolerations": {
+            "length": 0,
+            "nil": true
+          },
+          "Timeout": {
+            "nil": true
+          }
+        },
+        "input": "null",
+        "roundtrip": "{}"
+      }
+    }
+  },
+  "external": [
+    {
+      "fields": [],
+      "methods": [
+        {
+          "in": [
+            "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3.MapStringInterface",
+            "*github.com/rancher/rancher/pkg/apis/management.cattle.io/v3.MapStringInterface"
+          ],
+          "name": "DeepCopyInto",
+          "out": [],
+          "receiver": "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3.MapStringInterface",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*github.com/rancher/rancher/pkg/apis/management.cattle.io/v3.MapStringInterface"
+          ],
+          "name": "DeepCopy",
+          "out": [
+            "*github.com/rancher/rancher/pkg/apis/management.cattle.io/v3.MapStringInterface"
+          ],
+          "receiver": "*github.com/rancher/rancher/pkg/apis/management.cattle.io/v3.MapStringInterface",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*github.com/rancher/rancher/pkg/apis/management.cattle.io/v3.MapStringInterface",
+            "*github.com/rancher/rancher/pkg/apis/management.cattle.io/v3.MapStringInterface"
+          ],
+          "name": "DeepCopyInto",
+          "out": [],
+          "receiver": "*github.com/rancher/rancher/pkg/apis/management.cattle.io/v3.MapStringInterface",
+          "variadic": false
+        }
+      ],
+      "name": "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3.MapStringInterface"
+    },
+    {
+      "fields": [
+        {
+          "anonymous": false,
+          "index": [
+            0
+          ],
+          "name": "Key",
+          "tag": "json:\"key,omitempty\" protobuf:\"bytes,1,opt,name=key\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            1
+          ],
+          "name": "Operator",
+          "tag": "json:\"operator,omitempty\" protobuf:\"bytes,2,opt,name=operator,casttype=TolerationOperator\"",
+          "type": "k8s.io/api/core/v1.TolerationOperator"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            2
+          ],
+          "name": "Value",
+          "tag": "json:\"value,omitempty\" protobuf:\"bytes,3,opt,name=value\"",
+          "type": "string"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            3
+          ],
+          "name": "Effect",
+          "tag": "json:\"effect,omitempty\" protobuf:\"bytes,4,opt,name=effect,casttype=TaintEffect\"",
+          "type": "k8s.io/api/core/v1.TaintEffect"
+        },
+        {
+          "anonymous": false,
+          "index": [
+            4
+          ],
+          "name": "TolerationSeconds",
+          "tag": "json:\"tolerationSeconds,omitempty\" protobuf:\"varint,5,opt,name=tolerationSeconds\"",
+          "type": "*int64"
+        }
+      ],
+      "methods": [
+        {
+          "in": [
+            "k8s.io/api/core/v1.Toleration"
+          ],
+          "name": "OpenAPIModelName",
+          "out": [
+            "string"
+          ],
+          "receiver": "k8s.io/api/core/v1.Toleration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "k8s.io/api/core/v1.Toleration"
+          ],
+          "name": "SwaggerDoc",
+          "out": [
+            "map[string]string"
+          ],
+          "receiver": "k8s.io/api/core/v1.Toleration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/api/core/v1.Toleration"
+          ],
+          "name": "DeepCopy",
+          "out": [
+            "*k8s.io/api/core/v1.Toleration"
+          ],
+          "receiver": "*k8s.io/api/core/v1.Toleration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/api/core/v1.Toleration",
+            "*k8s.io/api/core/v1.Toleration"
+          ],
+          "name": "DeepCopyInto",
+          "out": [],
+          "receiver": "*k8s.io/api/core/v1.Toleration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/api/core/v1.Toleration"
+          ],
+          "name": "Marshal",
+          "out": [
+            "[]uint8",
+            "error"
+          ],
+          "receiver": "*k8s.io/api/core/v1.Toleration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/api/core/v1.Toleration",
+            "[]uint8"
+          ],
+          "name": "MarshalTo",
+          "out": [
+            "int",
+            "error"
+          ],
+          "receiver": "*k8s.io/api/core/v1.Toleration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/api/core/v1.Toleration",
+            "[]uint8"
+          ],
+          "name": "MarshalToSizedBuffer",
+          "out": [
+            "int",
+            "error"
+          ],
+          "receiver": "*k8s.io/api/core/v1.Toleration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/api/core/v1.Toleration",
+            "*k8s.io/api/core/v1.Toleration"
+          ],
+          "name": "MatchToleration",
+          "out": [
+            "bool"
+          ],
+          "receiver": "*k8s.io/api/core/v1.Toleration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/api/core/v1.Toleration"
+          ],
+          "name": "OpenAPIModelName",
+          "out": [
+            "string"
+          ],
+          "receiver": "*k8s.io/api/core/v1.Toleration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/api/core/v1.Toleration"
+          ],
+          "name": "Reset",
+          "out": [],
+          "receiver": "*k8s.io/api/core/v1.Toleration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/api/core/v1.Toleration"
+          ],
+          "name": "Size",
+          "out": [
+            "int"
+          ],
+          "receiver": "*k8s.io/api/core/v1.Toleration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/api/core/v1.Toleration"
+          ],
+          "name": "String",
+          "out": [
+            "string"
+          ],
+          "receiver": "*k8s.io/api/core/v1.Toleration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/api/core/v1.Toleration"
+          ],
+          "name": "SwaggerDoc",
+          "out": [
+            "map[string]string"
+          ],
+          "receiver": "*k8s.io/api/core/v1.Toleration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/api/core/v1.Toleration",
+            "github.com/go-logr/logr.Logger",
+            "*k8s.io/api/core/v1.Taint",
+            "bool"
+          ],
+          "name": "ToleratesTaint",
+          "out": [
+            "bool"
+          ],
+          "receiver": "*k8s.io/api/core/v1.Toleration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/api/core/v1.Toleration",
+            "[]uint8"
+          ],
+          "name": "Unmarshal",
+          "out": [
+            "error"
+          ],
+          "receiver": "*k8s.io/api/core/v1.Toleration",
+          "variadic": false
+        }
+      ],
+      "name": "k8s.io/api/core/v1.Toleration"
+    },
+    {
+      "fields": [
+        {
+          "anonymous": true,
+          "index": [
+            0
+          ],
+          "name": "Duration",
+          "tag": "protobuf:\"varint,1,opt,name=duration,casttype=time.Duration\"",
+          "type": "time.Duration"
+        }
+      ],
+      "methods": [
+        {
+          "in": [
+            "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Abs",
+          "out": [
+            "time.Duration"
+          ],
+          "receiver": "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Hours",
+          "out": [
+            "float64"
+          ],
+          "receiver": "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "MarshalJSON",
+          "out": [
+            "[]uint8",
+            "error"
+          ],
+          "receiver": "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Microseconds",
+          "out": [
+            "int64"
+          ],
+          "receiver": "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Milliseconds",
+          "out": [
+            "int64"
+          ],
+          "receiver": "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Minutes",
+          "out": [
+            "float64"
+          ],
+          "receiver": "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Nanoseconds",
+          "out": [
+            "int64"
+          ],
+          "receiver": "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "OpenAPIModelName",
+          "out": [
+            "string"
+          ],
+          "receiver": "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "OpenAPISchemaFormat",
+          "out": [
+            "string"
+          ],
+          "receiver": "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "OpenAPISchemaType",
+          "out": [
+            "[]string"
+          ],
+          "receiver": "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+            "time.Duration"
+          ],
+          "name": "Round",
+          "out": [
+            "time.Duration"
+          ],
+          "receiver": "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Seconds",
+          "out": [
+            "float64"
+          ],
+          "receiver": "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "ToUnstructured",
+          "out": [
+            "interface {}"
+          ],
+          "receiver": "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+            "time.Duration"
+          ],
+          "name": "Truncate",
+          "out": [
+            "time.Duration"
+          ],
+          "receiver": "k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Abs",
+          "out": [
+            "time.Duration"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "DeepCopy",
+          "out": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "DeepCopyInto",
+          "out": [],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Hours",
+          "out": [
+            "float64"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Marshal",
+          "out": [
+            "[]uint8",
+            "error"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "MarshalJSON",
+          "out": [
+            "[]uint8",
+            "error"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+            "[]uint8"
+          ],
+          "name": "MarshalTo",
+          "out": [
+            "int",
+            "error"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+            "[]uint8"
+          ],
+          "name": "MarshalToSizedBuffer",
+          "out": [
+            "int",
+            "error"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Microseconds",
+          "out": [
+            "int64"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Milliseconds",
+          "out": [
+            "int64"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Minutes",
+          "out": [
+            "float64"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Nanoseconds",
+          "out": [
+            "int64"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "OpenAPIModelName",
+          "out": [
+            "string"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "OpenAPISchemaFormat",
+          "out": [
+            "string"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "OpenAPISchemaType",
+          "out": [
+            "[]string"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Reset",
+          "out": [],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+            "time.Duration"
+          ],
+          "name": "Round",
+          "out": [
+            "time.Duration"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Seconds",
+          "out": [
+            "float64"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "Size",
+          "out": [
+            "int"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "String",
+          "out": [
+            "string"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+          ],
+          "name": "ToUnstructured",
+          "out": [
+            "interface {}"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+            "time.Duration"
+          ],
+          "name": "Truncate",
+          "out": [
+            "time.Duration"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+            "[]uint8"
+          ],
+          "name": "Unmarshal",
+          "out": [
+            "error"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        },
+        {
+          "in": [
+            "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+            "[]uint8"
+          ],
+          "name": "UnmarshalJSON",
+          "out": [
+            "error"
+          ],
+          "receiver": "*k8s.io/apimachinery/pkg/apis/meta/v1.Duration",
+          "variadic": false
+        }
+      ],
+      "name": "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"
+    }
+  ]
+}

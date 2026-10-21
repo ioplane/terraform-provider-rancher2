@@ -54,6 +54,11 @@ type Config struct {
 	K8SSupportedVersions []string
 	Sync                 sync.Mutex
 	Client               Client
+	contextMu            sync.Mutex
+	contextGeneration    uint64
+	contextChanged       chan struct{}
+	contextFlight        map[string]*contextInit
+	contextReady         map[string]*contextClientState
 }
 
 // GetRancherVersion get Rancher server version
@@ -84,15 +89,23 @@ func (c *Config) isRancherReady() error {
 	url := c.URL + "/ping"
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
+	requestCtx := ctx
+	if c.Timeout <= 0 {
+		// Preserve the complete first probe only at this legacy no-caller-context boundary.
+		requestCtx = context.WithoutCancel(ctx)
+	}
 	for {
-		resp, err = DoGet(url, "", "", "", c.CACerts, c.Insecure)
+		resp, err = doGet(requestCtx, url, "", "", "", c.CACerts, c.Insecure)
 		if err == nil && rancher2ReadyAnswer == string(resp) {
 			return nil
 		}
 		select {
 		case <-time.After(rancher2RetriesWait * time.Second):
 		case <-ctx.Done():
-			return fmt.Errorf("Rancher is not ready: %v", err)
+			if err != nil {
+				return fmt.Errorf("rancher is not ready: %w (last error: %w)", ctx.Err(), err)
+			}
+			return fmt.Errorf("rancher is not ready: %w", ctx.Err())
 		}
 	}
 }
@@ -114,8 +127,11 @@ func (c *Config) waitForRancherLocalActive() error {
 }
 
 func (c *Config) getK8SDefaultVersion() (string, error) {
-	if len(c.K8SDefaultVersion) > 0 {
-		return c.K8SDefaultVersion, nil
+	c.contextMu.Lock()
+	version := c.K8SDefaultVersion
+	c.contextMu.Unlock()
+	if len(version) > 0 {
+		return version, nil
 	}
 	var err error
 	if c.Client.Management == nil {
@@ -130,8 +146,11 @@ func (c *Config) getK8SDefaultVersion() (string, error) {
 	for {
 		k8sVer, err := c.Client.Management.Setting.ByID("k8s-version")
 		if err == nil {
-			c.K8SDefaultVersion = k8sVer.Value
-			return c.K8SDefaultVersion, nil
+			version = k8sVer.Value
+			c.contextMu.Lock()
+			c.K8SDefaultVersion = version
+			c.contextMu.Unlock()
+			return version, nil
 		}
 		if !IsServerError(err) && !IsForbidden(err) {
 			return "", err
@@ -187,13 +206,21 @@ func (c *Config) UpdateToken(token string) error {
 	if len(token) == 0 {
 		return fmt.Errorf("token is nil")
 	}
+	c.contextMu.Lock()
 	c.TokenKey = token
+	old := c.invalidateContextClientsLocked()
+	c.contextMu.Unlock()
+	closeContextIdle(old...)
 
 	return c.RestartClients()
 }
 
 // RestartClients connections
 func (c *Config) RestartClients() error {
+	c.contextMu.Lock()
+	old := c.invalidateContextClientsLocked()
+	c.contextMu.Unlock()
+	closeContextIdle(old...)
 	c.Sync.Lock()
 	if c.Client.Management != nil {
 		c.Client.Management = nil
@@ -362,7 +389,11 @@ func (c *Config) NormalizeURL() error {
 	if err != nil {
 		return err
 	}
+	c.contextMu.Lock()
 	c.URL = url
+	old := c.invalidateContextClientsLocked()
+	c.contextMu.Unlock()
+	closeContextIdle(old...)
 	return nil
 }
 
@@ -1026,47 +1057,6 @@ func findUserByPrincipalID(users []managementClient.User, principalID string) *m
 	return nil
 }
 
-func (c *Config) activateNodeDriver(id string, interval time.Duration) error {
-	if id == "" {
-		return fmt.Errorf("[ERROR] Node Driver id is nil")
-	}
-
-	client, err := c.ManagementClient()
-	if err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), interval)
-	defer cancel()
-	for updated := false; ; {
-		driver, err := client.NodeDriver.ByID(id)
-		if err != nil && !IsServerError(err) && !IsUnknownSchemaType(err) && !IsNotFound(err) && !IsForbidden(err) {
-			return fmt.Errorf("[ERROR] Getting Node Driver %s: %v", id, err)
-		}
-		if driver != nil {
-			if driver.State == "active" {
-				return nil
-			}
-
-			if !updated {
-				driver, err = client.NodeDriver.ActionActivate(driver)
-				if err == nil {
-					updated = true
-					continue
-				}
-				if !IsServerError(err) && !IsUnknownSchemaType(err) {
-					return fmt.Errorf("[ERROR] Activating Node Driver %s: %v", id, err)
-				}
-			}
-		}
-		select {
-		case <-time.After(rancher2RetriesWait * time.Second):
-		case <-ctx.Done():
-			return fmt.Errorf("Timeout activating Node Driver %s: %v", id, err)
-		}
-	}
-}
-
 func (c *Config) UserPasswordChanged(user *managementClient.User, pass string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(pass))
 	// Password has changed
@@ -1267,11 +1257,13 @@ func getAuthConfigObject(kind string) (interface{}, error) {
 }
 
 func (c *Config) GetRegistryByFilters(filters map[string]interface{}) (interface{}, error) {
-	if filters == nil || len(filters["name"].(string)) == 0 || len(filters["projectId"].(string)) == 0 {
+	name, nameOK := filters["name"].(string)
+	projectID, projectIDOK := filters["projectId"].(string)
+	if !nameOK || !projectIDOK || len(name) == 0 || len(projectID) == 0 {
 		return nil, fmt.Errorf("[ERROR] Name nor project_id can't be nil")
 	}
 
-	client, err := c.ProjectClient(filters["projectId"].(string))
+	client, err := c.ProjectClient(projectID)
 	if err != nil {
 		return nil, err
 	}

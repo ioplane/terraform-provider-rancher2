@@ -7,10 +7,10 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/rancher/norman/types"
-	types2 "github.com/rancher/rancher/pkg/api/steve/catalog/types"
+	types2 "github.com/rancher/terraform-provider-rancher2/internal/ranchercatalog"
 )
 
 func resourceRancher2AppV2() *schema.Resource {
@@ -87,18 +87,18 @@ func resourceRancher2AppV2Read(d *schema.ResourceData, meta interface{}) error {
 	name := d.Get("name").(string)
 	log.Printf("[INFO] Refreshing App V2 %s at %s", name, clusterID)
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		if clusterName, ok := d.Get("cluster_name").(string); !ok || len(clusterName) == 0 {
 			cluster, err := meta.(*Config).GetClusterByID(clusterID)
 			if err != nil {
-				return resource.NonRetryableError(err)
+				return retry.NonRetryableError(err)
 			}
 			d.Set("cluster_name", cluster.Name)
 		}
 		if systemDefaultRegistry, ok := d.Get("system_default_registry").(string); !ok || len(systemDefaultRegistry) == 0 {
 			systemDefaultRegistry, err := meta.(*Config).GetSettingV2ByID(appV2DefaultRegistryID)
 			if err != nil {
-				return resource.NonRetryableError(err)
+				return retry.NonRetryableError(err)
 			}
 			d.Set("system_default_registry", systemDefaultRegistry.Value)
 		}
@@ -110,11 +110,11 @@ func resourceRancher2AppV2Read(d *schema.ResourceData, meta interface{}) error {
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = flattenAppV2(d, app); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -168,7 +168,7 @@ func resourceRancher2AppV2Delete(d *schema.ResourceData, meta interface{}) error
 	if err != nil {
 		return fmt.Errorf("Error removing App V2 %s: %s", name, err)
 	}
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"removed"},
 		Refresh:    appV2StateRefreshFunc(meta, clusterID, app.ID),
@@ -185,7 +185,7 @@ func resourceRancher2AppV2Delete(d *schema.ResourceData, meta interface{}) error
 }
 
 // appV2StateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher App.
-func appV2StateRefreshFunc(meta interface{}, clusterID, appID string) resource.StateRefreshFunc {
+func appV2StateRefreshFunc(meta interface{}, clusterID, appID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := getAppV2ByID(meta.(*Config), clusterID, appID)
 		if err != nil {

@@ -33,7 +33,6 @@ func Test_expandClusterAgentPriorityClassV2(t *testing.T) {
 
 	t.Parallel()
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			out := expandClusterAgentPriorityClassV2(test.input)
 			assert.Equal(t, test.expectedOutput, out, "unexpected output from expander, expected %v, got %v", test.expectedOutput, out)
@@ -77,7 +76,6 @@ func Test_flattenClusterAgentPriorityClassV2(t *testing.T) {
 
 	t.Parallel()
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			out := flattenClusterAgentPriorityClassV2(test.input)
 			assert.Equal(t, test.expectedOutput, out, "unexpected output from flattener, expected %v, got %v", test.expectedOutput, out)

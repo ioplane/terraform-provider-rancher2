@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
 
@@ -56,7 +56,7 @@ func resourceRancher2ProjectRoleTemplateBindingCreate(d *schema.ResourceData, me
 
 	d.SetId(newProjectRole.ID)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"active"},
 		Refresh:    projectRoleTemplateBindingStateRefreshFunc(client, newProjectRole.ID),
@@ -120,7 +120,7 @@ func resourceRancher2ProjectRoleTemplateBindingUpdate(d *schema.ResourceData, me
 		return err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"active"},
 		Refresh:    projectRoleTemplateBindingStateRefreshFunc(client, newProjectRole.ID),
@@ -162,7 +162,7 @@ func resourceRancher2ProjectRoleTemplateBindingDelete(d *schema.ResourceData, me
 
 	log.Printf("[DEBUG] Waiting for project role template binding (%s) to be removed", id)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"removed"},
 		Refresh:    projectRoleTemplateBindingStateRefreshFunc(client, id),
@@ -182,7 +182,7 @@ func resourceRancher2ProjectRoleTemplateBindingDelete(d *schema.ResourceData, me
 }
 
 // PpojectRoleTemplateBindingStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher Project Role Template Binding.
-func projectRoleTemplateBindingStateRefreshFunc(client *managementClient.Client, projectRoleID string) resource.StateRefreshFunc {
+func projectRoleTemplateBindingStateRefreshFunc(client *managementClient.Client, projectRoleID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := client.ProjectRoleTemplateBinding.ByID(projectRoleID)
 		if err != nil {

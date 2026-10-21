@@ -1,8 +1,9 @@
 package rancher2
 
 import (
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"regexp"
 )
 
 var (
@@ -75,6 +76,21 @@ func machineConfigV2NutanixFields() map[string]*schema.Schema {
 			Elem: &schema.Schema{
 				Type: schema.TypeString,
 			},
+		},
+		"vm_nic_queues": {
+			Type:         schema.TypeInt,
+			Optional:     true,
+			ValidateFunc: validation.IntAtLeast(1),
+			Description:  "Queues per NIC, at most vm_cpus times vm_cores; omitted preserves the platform default",
+		},
+		"vm_management_network": {
+			Type:     schema.TypeString,
+			Optional: true,
+			ValidateFunc: validation.StringMatch(
+				regexp.MustCompile(`^([[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12})?$`),
+				"must be an attached subnet UUID or empty",
+			),
+			Description: "Management subnet UUID among attached networks; omitted preserves driver selection",
 		},
 		"vm_image": {
 			Type:        schema.TypeString,

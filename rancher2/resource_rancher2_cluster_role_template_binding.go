@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
 
@@ -56,7 +56,7 @@ func resourceRancher2ClusterRoleTemplateBindingCreate(d *schema.ResourceData, me
 
 	d.SetId(newClusterRole.ID)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"active"},
 		Refresh:    clusterRoleTemplateBindingStateRefreshFunc(client, newClusterRole.ID),
@@ -80,7 +80,7 @@ func resourceRancher2ClusterRoleTemplateBindingRead(d *schema.ResourceData, meta
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		clusterRole, err := client.ClusterRoleTemplateBinding.ByID(d.Id())
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -88,11 +88,11 @@ func resourceRancher2ClusterRoleTemplateBindingRead(d *schema.ResourceData, meta
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = flattenClusterRoleTemplateBinding(d, clusterRole); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -126,7 +126,7 @@ func resourceRancher2ClusterRoleTemplateBindingUpdate(d *schema.ResourceData, me
 		return err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"active"},
 		Refresh:    clusterRoleTemplateBindingStateRefreshFunc(client, newClusterRole.ID),
@@ -168,7 +168,7 @@ func resourceRancher2ClusterRoleTemplateBindingDelete(d *schema.ResourceData, me
 
 	log.Printf("[DEBUG] Waiting for cluster role template binding (%s) to be removed", id)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"removed"},
 		Refresh:    clusterRoleTemplateBindingStateRefreshFunc(client, id),
@@ -188,7 +188,7 @@ func resourceRancher2ClusterRoleTemplateBindingDelete(d *schema.ResourceData, me
 }
 
 // clusterRoleTemplateBindingStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher Cluster Role Template Binding.
-func clusterRoleTemplateBindingStateRefreshFunc(client *managementClient.Client, clusterRoleID string) resource.StateRefreshFunc {
+func clusterRoleTemplateBindingStateRefreshFunc(client *managementClient.Client, clusterRoleID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := client.ClusterRoleTemplateBinding.ByID(clusterRoleID)
 		if err != nil {

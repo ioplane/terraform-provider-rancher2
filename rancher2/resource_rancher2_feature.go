@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func resourceRancher2Feature() *schema.Resource {
@@ -37,12 +37,12 @@ func resourceRancher2FeatureRead(d *schema.ResourceData, meta interface{}) error
 
 	feature, err := client.Feature.ByID(name)
 	if err != nil {
-		if IsNotFound(err) || IsForbidden(err) {
+		if IsNotFound(err) {
 			log.Printf("[INFO] Feature ID %s not found.", d.Id())
 			d.SetId("")
 			return nil
 		}
-		return fmt.Errorf("[ERROR] refreshing feature %s: %v", d.Id(), err)
+		return fmt.Errorf("refresh feature %s: %w", d.Id(), err)
 	}
 
 	err = flattenFeature(d, feature)
@@ -72,7 +72,7 @@ func resourceRancher2FeatureUpdate(d *schema.ResourceData, meta interface{}) err
 		"labels":      toMapString(d.Get("labels").(map[string]interface{})),
 	}
 
-	newFeature, err := client.Feature.Update(feature, update)
+	_, err = client.Feature.Update(feature, update)
 	if err != nil {
 		// Bad gateway or service unavailable error may be fine if Rancher is restarted
 		if !IsBadGatewayError(err) && !IsServiceUnavailableError(err) {
@@ -80,10 +80,10 @@ func resourceRancher2FeatureUpdate(d *schema.ResourceData, meta interface{}) err
 		}
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active", "rebooting"},
 		Target:     []string{"active"},
-		Refresh:    featureStateRefreshFunc(meta, newFeature.ID),
+		Refresh:    featureStateRefreshFunc(meta, d.Id()),
 		Timeout:    10 * time.Minute,
 		Delay:      1 * time.Second,
 		MinTimeout: 3 * time.Second,
@@ -91,7 +91,7 @@ func resourceRancher2FeatureUpdate(d *schema.ResourceData, meta interface{}) err
 	_, waitErr := stateConf.WaitForState()
 	if waitErr != nil {
 		return fmt.Errorf(
-			"[ERROR] waiting for feature (%s) to be updated: %s", newFeature.ID, waitErr)
+			"[ERROR] waiting for feature (%s) to be updated: %s", d.Id(), waitErr)
 	}
 
 	return resourceRancher2FeatureRead(d, meta)
@@ -105,11 +105,11 @@ func resourceRancher2FeatureDelete(d *schema.ResourceData, meta interface{}) err
 }
 
 // featureStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher Project.
-func featureStateRefreshFunc(meta interface{}, featureID string) resource.StateRefreshFunc {
+func featureStateRefreshFunc(meta interface{}, featureID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		err := meta.(*Config).isRancherReady()
 		if err != nil {
-			return nil, "rebooting", nil
+			return featureID, "rebooting", nil
 		}
 		client, err := meta.(*Config).ManagementClient()
 		if err != nil {
@@ -117,7 +117,7 @@ func featureStateRefreshFunc(meta interface{}, featureID string) resource.StateR
 		}
 		obj, err := client.Feature.ByID(featureID)
 		if err != nil {
-			if IsNotFound(err) || IsForbidden(err) {
+			if IsNotFound(err) {
 				return obj, "removed", nil
 			}
 			return nil, "", err

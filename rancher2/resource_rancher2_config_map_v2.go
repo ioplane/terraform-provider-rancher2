@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/rancher/norman/types"
 )
 
@@ -41,7 +41,7 @@ func resourceRancher2ConfigMapV2Create(d *schema.ResourceData, meta interface{})
 		return err
 	}
 	d.SetId(clusterID + configMapV2ClusterIDsep + newConfigMap.ID)
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"active"},
 		Refresh:    configMapV2StateRefreshFunc(meta, clusterID, newConfigMap.ID),
@@ -60,7 +60,7 @@ func resourceRancher2ConfigMapV2Read(d *schema.ResourceData, meta interface{}) e
 	clusterID, rancherID := splitID(d.Id())
 	log.Printf("[INFO] Refreshing ConfigMap V2 %s at Cluster ID %s", rancherID, clusterID)
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		configMap, err := getConfigMapV2ByID(meta.(*Config), clusterID, rancherID)
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -68,10 +68,10 @@ func resourceRancher2ConfigMapV2Read(d *schema.ResourceData, meta interface{}) e
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 		if err = flattenConfigMapV2(d, configMap); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -88,7 +88,7 @@ func resourceRancher2ConfigMapV2Update(d *schema.ResourceData, meta interface{})
 		return err
 	}
 	d.SetId(clusterID + configMapV2ClusterIDsep + newConfigMap.ID)
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"active"},
 		Refresh:    configMapV2StateRefreshFunc(meta, clusterID, newConfigMap.ID),
@@ -120,7 +120,7 @@ func resourceRancher2ConfigMapV2Delete(d *schema.ResourceData, meta interface{})
 	if err != nil {
 		return err
 	}
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"removed"},
 		Refresh:    configMapV2StateRefreshFunc(meta, clusterID, configMap.ID),
@@ -137,7 +137,7 @@ func resourceRancher2ConfigMapV2Delete(d *schema.ResourceData, meta interface{})
 }
 
 // configMapV2StateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher ConfigMap v2.
-func configMapV2StateRefreshFunc(meta interface{}, clusterID, configMapID string) resource.StateRefreshFunc {
+func configMapV2StateRefreshFunc(meta interface{}, clusterID, configMapID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := getConfigMapV2ByID(meta.(*Config), clusterID, configMapID)
 		if err != nil {

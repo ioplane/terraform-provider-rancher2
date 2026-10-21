@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
 
@@ -46,48 +46,48 @@ func dataSourceRancher2Cluster() *schema.Resource {
 				Sensitive: true,
 			},
 			"rke2_config": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterRKE2ConfigFields(),
 				},
 			},
 			"k3s_config": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterK3SConfigFields(),
 				},
 			},
 			"eks_config_v2": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterEKSConfigV2Fields(),
 				},
 			},
 			"aks_config_v2": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterAKSConfigV2Fields(),
 				},
 			},
 			"gke_config_v2": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterGKEConfigV2Fields(),
 				},
 			},
 			"oke_config": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterOKEConfigFields(),
@@ -106,16 +106,16 @@ func dataSourceRancher2Cluster() *schema.Resource {
 				Computed: true,
 			},
 			"cluster_auth_endpoint": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterAuthEndpoint(),
 				},
 			},
 			"cluster_registration_token": {
-				Type:     schema.TypeList,
-				MaxItems: 1,
+				Type: schema.TypeList,
+
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: clusterRegistrationTokenFields(),
@@ -183,7 +183,7 @@ func dataSourceRancher2ClusterRead(d *schema.ResourceData, meta interface{}) err
 
 	d.SetId(clusters.Data[0].ID)
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		cluster := &Cluster{}
 		err = client.APIBaseClient.ByID(managementClient.ClusterType, d.Id(), cluster)
 		if err != nil {
@@ -192,17 +192,17 @@ func dataSourceRancher2ClusterRead(d *schema.ResourceData, meta interface{}) err
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		clusterRegistrationToken, err := findClusterRegistrationToken(client, cluster.ID)
 		if err != nil && !IsForbidden(err) {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		defaultProjectID, systemProjectID, err := meta.(*Config).GetClusterSpecialProjectsID(cluster.ID)
 		if err != nil && !IsForbidden(err) {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		var kubeConfig *managementClient.GenerateKubeConfigOutput
@@ -211,7 +211,7 @@ func dataSourceRancher2ClusterRead(d *schema.ResourceData, meta interface{}) err
 			log.Printf("[WARN] Generating kubeconfig for cluster %s creates a new API token. Set generate_kube_config = false if you don't need kube_config. The default will change to false in a future version.", cluster.ID)
 			kubeConfig, err = getClusterKubeconfig(meta.(*Config), cluster.ID, d.Get("kube_config").(string))
 			if err != nil && !IsForbidden(err) {
-				return resource.NonRetryableError(err)
+				return retry.NonRetryableError(err)
 			}
 		}
 		if kubeConfig == nil {
@@ -225,7 +225,7 @@ func dataSourceRancher2ClusterRead(d *schema.ResourceData, meta interface{}) err
 			kubeConfig,
 			defaultProjectID,
 			systemProjectID); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil

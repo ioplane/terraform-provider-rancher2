@@ -1,12 +1,13 @@
 package rancher2
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func resourceRancher2GlobalRole() *schema.Resource {
@@ -18,7 +19,7 @@ func resourceRancher2GlobalRole() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			State: resourceRancher2GlobalRoleImport,
 		},
-		CustomizeDiff: func(d *schema.ResourceDiff, i any) error {
+		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, i any) error {
 			return validateInheritedNamespacedRules(d.Get("inherited_namespaced_rules"))
 		},
 
@@ -73,21 +74,21 @@ func resourceRancher2GlobalRoleCreate(d *schema.ResourceData, meta interface{}) 
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutCreate), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutCreate), func() *retry.RetryError {
 		globalRole := expandGlobalRole(d)
 
 		log.Printf("[INFO] Creating global role")
 
 		newGlobalRole, err := client.GlobalRole.Create(globalRole)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		d.SetId(newGlobalRole.ID)
 
 		err = resourceRancher2GlobalRoleRead(d, meta)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -101,7 +102,7 @@ func resourceRancher2GlobalRoleRead(d *schema.ResourceData, meta interface{}) er
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		globalRole, err := client.GlobalRole.ByID(d.Id())
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -109,11 +110,11 @@ func resourceRancher2GlobalRoleRead(d *schema.ResourceData, meta interface{}) er
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = flattenGlobalRole(d, globalRole); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -127,10 +128,10 @@ func resourceRancher2GlobalRoleUpdate(d *schema.ResourceData, meta interface{}) 
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutUpdate), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutUpdate), func() *retry.RetryError {
 		globalRole, err := client.GlobalRole.ByID(d.Id())
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		update := map[string]any{
@@ -149,11 +150,11 @@ func resourceRancher2GlobalRoleUpdate(d *schema.ResourceData, meta interface{}) 
 		}
 
 		if _, err = client.GlobalRole.Update(globalRole, update); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = resourceRancher2GlobalRoleRead(d, meta); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -168,7 +169,7 @@ func resourceRancher2GlobalRoleDelete(d *schema.ResourceData, meta interface{}) 
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutDelete), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutDelete), func() *retry.RetryError {
 		globalRole, err := client.GlobalRole.ByID(id)
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -176,12 +177,12 @@ func resourceRancher2GlobalRoleDelete(d *schema.ResourceData, meta interface{}) 
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if !globalRole.Builtin {
 			if err = client.GlobalRole.Delete(globalRole); err != nil {
-				return resource.NonRetryableError(fmt.Errorf("[ERROR] Error removing global role: %s", err))
+				return retry.NonRetryableError(fmt.Errorf("[ERROR] Error removing global role: %s", err))
 			}
 		}
 

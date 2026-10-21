@@ -5,9 +5,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func resourceRancher2RoleTemplate() *schema.Resource {
@@ -35,7 +35,7 @@ func resourceRancher2RoleTemplateCreate(d *schema.ResourceData, meta interface{}
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutCreate), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutCreate), func() *retry.RetryError {
 		roleTemplate := expandRoleTemplate(d)
 		if roleTemplate == nil {
 			log.Printf("[INFO] Expanded role template was empty")
@@ -46,14 +46,14 @@ func resourceRancher2RoleTemplateCreate(d *schema.ResourceData, meta interface{}
 
 		newRoleTemplate, err := client.RoleTemplate.Create(roleTemplate)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		d.SetId(newRoleTemplate.ID)
 
 		err = resourceRancher2RoleTemplateRead(d, meta)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -67,7 +67,7 @@ func resourceRancher2RoleTemplateRead(d *schema.ResourceData, meta interface{}) 
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		roleTemplate, err := client.RoleTemplate.ByID(d.Id())
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -75,11 +75,11 @@ func resourceRancher2RoleTemplateRead(d *schema.ResourceData, meta interface{}) 
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = flattenRoleTemplate(d, roleTemplate); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -93,10 +93,10 @@ func resourceRancher2RoleTemplateUpdate(d *schema.ResourceData, meta interface{}
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutUpdate), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutUpdate), func() *retry.RetryError {
 		roleTemplate, err := client.RoleTemplate.ByID(d.Id())
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		update := map[string]interface{}{
@@ -132,12 +132,12 @@ func resourceRancher2RoleTemplateUpdate(d *schema.ResourceData, meta interface{}
 
 		_, err = client.RoleTemplate.Update(roleTemplate, update)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		err = resourceRancher2RoleTemplateRead(d, meta)
 		if err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -152,7 +152,7 @@ func resourceRancher2RoleTemplateDelete(d *schema.ResourceData, meta interface{}
 		return err
 	}
 
-	return resource.Retry(d.Timeout(schema.TimeoutDelete), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutDelete), func() *retry.RetryError {
 		roleTemplate, err := client.RoleTemplate.ByID(id)
 		if err != nil {
 			if IsNotFound(err) || IsForbidden(err) {
@@ -160,13 +160,13 @@ func resourceRancher2RoleTemplateDelete(d *schema.ResourceData, meta interface{}
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if !roleTemplate.Builtin {
 			err = client.RoleTemplate.Delete(roleTemplate)
 			if err != nil {
-				return resource.NonRetryableError(fmt.Errorf("[ERROR] Error removing role template: %s", err))
+				return retry.NonRetryableError(fmt.Errorf("[ERROR] Error removing role template: %s", err))
 			}
 		}
 

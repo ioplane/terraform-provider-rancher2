@@ -39,7 +39,6 @@ func Test_flattenPodDisruptionBudgetV2(t *testing.T) {
 
 	t.Parallel()
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			out := flattenPodDisruptionBudgetV2(tt.input)
 			assert.Equal(t, tt.expectedOutput, out, "unexpected output from flattener, expected %v, got %v", tt.expectedOutput, out)
@@ -79,7 +78,6 @@ func Test_expandPodDisruptionBudgetV2(t *testing.T) {
 
 	t.Parallel()
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			out := expandPodDisruptionBudgetV2(tt.input)
 			assert.Equal(t, tt.expectedOutput, out, "unexpected output from expander, expected %v, got %v", tt.expectedOutput, out)

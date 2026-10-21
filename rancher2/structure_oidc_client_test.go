@@ -3,7 +3,7 @@ package rancher2
 import (
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/rancher/norman/types"
 	client "github.com/rancher/rancher/pkg/client/generated/management/v3"
 	"github.com/stretchr/testify/assert"
@@ -140,7 +140,7 @@ func TestFlattenOIDCClientWithSecret(t *testing.T) {
 		Status: client.OIDCClientStatus{
 			ClientID: "test-client-id",
 			ClientSecrets: map[string]client.OIDCClientSecretStatus{
-				"client-secret-1": client.OIDCClientSecretStatus{
+				"client-secret-1": {
 					CreatedAt:          "1785140629",
 					LastFiveCharacters: "gttjf",
 				},

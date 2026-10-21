@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/rancher/norman/types"
 	v1 "github.com/rancher/rancher/pkg/apis/catalog.cattle.io/v1"
 	"golang.org/x/sync/errgroup"
@@ -46,7 +46,7 @@ func resourceRancher2CatalogV2Create(d *schema.ResourceData, meta interface{}) e
 		return err
 	}
 	d.SetId(clusterID + catalogV2ClusterIDsep + newCatalog.ID)
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"downloaded", "ociDownloaded"},
 		Refresh:    catalogV2StateRefreshFunc(meta, clusterID, newCatalog.ID),
@@ -66,7 +66,7 @@ func resourceRancher2CatalogV2Read(d *schema.ResourceData, meta interface{}) err
 	name := d.Get("name").(string)
 	log.Printf("[INFO] Refreshing Catalog V2 %s", name)
 
-	return resource.Retry(d.Timeout(schema.TimeoutRead), func() *resource.RetryError {
+	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		_, rancherID := splitID(d.Id())
 		catalog, err := getCatalogV2ByID(meta.(*Config), clusterID, rancherID)
 		if err != nil {
@@ -75,11 +75,11 @@ func resourceRancher2CatalogV2Read(d *schema.ResourceData, meta interface{}) err
 				d.SetId("")
 				return nil
 			}
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = flattenCatalogV2(d, catalog); err != nil {
-			return resource.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		return nil
@@ -101,7 +101,7 @@ func resourceRancher2CatalogV2Update(d *schema.ResourceData, meta interface{}) e
 		return err
 	}
 	d.SetId(clusterID + catalogV2ClusterIDsep + newCatalog.ID)
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"downloaded", "ociDownloaded"},
 		Refresh:    catalogV2StateRefreshFunc(meta, clusterID, newCatalog.ID),
@@ -133,7 +133,7 @@ func resourceRancher2CatalogV2Delete(d *schema.ResourceData, meta interface{}) e
 	if err != nil {
 		return err
 	}
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"removed"},
 		Refresh:    catalogV2StateRefreshFunc(meta, clusterID, catalog.ID),
@@ -150,7 +150,7 @@ func resourceRancher2CatalogV2Delete(d *schema.ResourceData, meta interface{}) e
 }
 
 // catalogV2StateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher Catalog v2.
-func catalogV2StateRefreshFunc(meta interface{}, clusterID, catalogID string) resource.StateRefreshFunc {
+func catalogV2StateRefreshFunc(meta interface{}, clusterID, catalogID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		obj, err := getCatalogV2ByID(meta.(*Config), clusterID, catalogID)
 		if err != nil {
@@ -356,7 +356,7 @@ func waitAllCatalogV2Downloaded(c *Config, clusterID string) ([]ClusterRepo, err
 
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
-	g, ctx := errgroup.WithContext(ctx)
+	g, _ := errgroup.WithContext(ctx)
 	for _, clusterRepo := range clusterRepos {
 		repoID := clusterRepo.ID
 		g.Go(func() error {
