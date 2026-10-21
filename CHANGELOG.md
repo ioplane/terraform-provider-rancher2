@@ -19,6 +19,8 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Serve Terraform plugin protocol 6 using the official SDK v2 translation adapter while retaining resource/state schemas and the Rancher provider address; advertise only protocol 6 in the registry manifest.
+
 - Propagate NodeDriver caller cancellation through CRUD, imports, readiness and final refresh using one contextual client snapshot; preserve known identity on failed or mismatched responses and do not replay writes with an uncertain outcome.
 - Propagate the MachineConfig Create deadline through one POST and readiness; retain known IDs on failure and refresh contextual schemas only at the existing RBAC recovery boundary, without a legacy management request or another POST.
 - Use the native MachineConfig Update deadline and one contextual client snapshot for lookup, a single PUT and final refresh; preserve identity on interrupted, missing or mismatched responses and remove duplicate refresh requests.

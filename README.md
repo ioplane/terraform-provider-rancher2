@@ -6,8 +6,10 @@ Terraform Provider for Rancher v2
 Requirements
 ------------
 
+The provider binary serves Terraform plugin protocol 6 through [HashiCorp's SDK v2 translation adapter](https://developer.hashicorp.com/terraform/plugin/mux/translating-protocol-version-5-to-6). Existing resource implementations and state schemas remain on SDK v2; this is not a migration to Plugin Framework. The registry manifest advertises only protocol 6, matching the executable. The existing Terraform CLI minimum below already exceeds the adapter's CLI 1.1.5 requirement.
+
 - [Terraform](https://www.terraform.io/downloads.html) >= 1.5.0
-- [Go](https://golang.org/doc/install) 1.23 to build the provider plugin
+- [Go](https://golang.org/doc/install) >= 1.26.4 to build the provider plugin; the project container pins Go 1.27.3
 
 Building The Provider
 ---------------------
