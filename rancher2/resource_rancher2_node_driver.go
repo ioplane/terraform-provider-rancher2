@@ -71,7 +71,7 @@ func resourceRancher2NodeDriverRead(d *schema.ResourceData, meta interface{}) er
 	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		nodeDriver, err := client.NodeDriver.ByID(d.Id())
 		if err != nil {
-			if IsNotFound(err) || IsForbidden(err) {
+			if IsNotFound(err) {
 				log.Printf("[INFO] Node Driver ID %s not found.", d.Id())
 				d.SetId("")
 				return nil
@@ -145,7 +145,7 @@ func resourceRancher2NodeDriverDelete(d *schema.ResourceData, meta interface{}) 
 
 	nodeDriver, err := client.NodeDriver.ByID(id)
 	if err != nil {
-		if IsNotFound(err) || IsForbidden(err) {
+		if IsNotFound(err) {
 			log.Printf("[INFO] Node Driver ID %s not found.", id)
 			d.SetId("")
 			return nil
@@ -186,7 +186,7 @@ func nodeDriverStateRefreshFunc(client *managementClient.Client, nodeDriverID st
 	return func() (interface{}, string, error) {
 		obj, err := client.NodeDriver.ByID(nodeDriverID)
 		if err != nil {
-			if IsNotFound(err) || IsForbidden(err) {
+			if IsNotFound(err) {
 				return obj, "removed", nil
 			}
 			return nil, "", err
