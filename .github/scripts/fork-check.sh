@@ -83,6 +83,7 @@ rancher2:TestMachineConfigV2ReadIdentity
 rancher2:TestMachineConfigV2ReadIdentity/forbidden
 rancher2:TestMachineConfigV2ReadIdentity/not_found
 rancher2:TestMachineConfigV2ReadIdentity/lookup_denied
+rancher2:TestMachineConfigV2ReadIdentity/bad_request
 rancher2:TestExpandMachineConfigV2Nutanix
 rancher2:TestFlattenMachineConfigV2Nutanix
 rancher2:TestNutanixMachineHardwarePlan
@@ -230,7 +231,7 @@ rancher2:TestSettingContextMutations/reset/forbidden`)
         if event.Action == "pass" { passes[key]++ }
     }
     fmt.Printf("critical test input: %d top-level, %d total run events, %d required names\n", top, total, len(required))
-    if total < 158 { return fmt.Errorf("critical test input shrank: %d < 158", total) }
+    if total < 159 { return fmt.Errorf("critical test input shrank: %d < 159", total) }
     for key, count := range runs { if count != 1 || passes[key] != 1 { return fmt.Errorf("test did not run/pass exactly once: %s run=%d pass=%d", key, count, passes[key]) } }
     for key := range passes { if runs[key] != 1 { return fmt.Errorf("pass without run: %s", key) } }
     for _, key := range required { if runs[prefix+key] != 1 || passes[prefix+key] != 1 { return fmt.Errorf("required test missing: %s", key) } }
