@@ -104,7 +104,7 @@ func waitForMachineConfigV2(ctx context.Context, d *schema.ResourceData, config 
 			return nil, fmt.Errorf("wait for machine config %q: %w", d.Id(), err)
 		}
 		kind := d.Get("kind").(string)
-		obj, err := machineConfigV2ByID(kind, func(apiType string, out any) error {
+		obj, err := machineConfigV2ByID(d.Id(), kind, func(apiType string, out any) error {
 			if client == nil {
 				var clientErr error
 				client, clientErr = config.catalogClientContext(ctx, rancher2DefaultLocalClusterID)
@@ -191,7 +191,7 @@ func resourceRancher2MachineConfigV2Update(ctx context.Context, d *schema.Resour
 	if err := checkNutanixMachineHardwareEcho(obj.NutanixConfig, newObj.NutanixConfig); err != nil {
 		return err
 	}
-	current, err := machineConfigV2ByID(obj.Kind, func(apiType string, out any) error {
+	current, err := machineConfigV2ByID(id, obj.Kind, func(apiType string, out any) error {
 		return machineConfigLookupContext(ctx, client, timeout, id, apiType, out)
 	})
 	if err != nil {
@@ -228,7 +228,7 @@ func resourceRancher2MachineConfigV2Delete(ctx context.Context, d *schema.Resour
 	var client *clientbase.APIBaseClient
 	defer func() { config.closeStaleContextClient(rancher2DefaultLocalClusterID, client) }()
 	lookup := func() (*MachineConfigV2, error) {
-		return machineConfigV2ByID(kind, func(apiType string, out any) error {
+		return machineConfigV2ByID(id, kind, func(apiType string, out any) error {
 			if client == nil {
 				var err error
 				client, err = config.catalogClientContext(ctx, rancher2DefaultLocalClusterID)
@@ -388,12 +388,15 @@ func getMachineConfigV2ByID(c *Config, id, kind string) (*MachineConfigV2, error
 	if len(id) == 0 {
 		return nil, fmt.Errorf("Getting Machine Config V2: Machine Config V2 ID is empty")
 	}
-	return machineConfigV2ByID(kind, func(apiType string, out any) error {
+	return machineConfigV2ByID(id, kind, func(apiType string, out any) error {
 		return c.getObjectV2ByID(rancher2DefaultLocalClusterID, id, apiType, out)
 	})
 }
 
-func machineConfigV2ByID(kind string, lookup func(string, any) error) (*MachineConfigV2, error) {
+func machineConfigV2ByID(id, kind string, lookup func(string, any) error) (*MachineConfigV2, error) {
+	if id == "" {
+		return nil, fmt.Errorf("machine config lookup requires an ID")
+	}
 	var err error
 	out := &MachineConfigV2{}
 	switch kind {
@@ -495,6 +498,9 @@ func machineConfigV2ByID(kind string, lookup func(string, any) error) (*MachineC
 			return nil, fmt.Errorf("get machine config v2: %w", err)
 		}
 		return nil, err
+	}
+	if out.ID != id {
+		return nil, fmt.Errorf("machine config lookup identity %q does not match %q", out.ID, id)
 	}
 	return out, nil
 }

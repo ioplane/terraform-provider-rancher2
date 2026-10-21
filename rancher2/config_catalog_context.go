@@ -68,7 +68,7 @@ func getMachineConfigV2ByIDContext(ctx context.Context, c *Config, id, kind stri
 	defer cancel()
 	var cli *clientbase.APIBaseClient
 	defer func() { c.closeStaleContextClient(rancher2DefaultLocalClusterID, cli) }()
-	return machineConfigV2ByID(kind, func(apiType string, out any) error {
+	return machineConfigV2ByID(id, kind, func(apiType string, out any) error {
 		var err error
 		cli, err = c.catalogClientContext(phase, rancher2DefaultLocalClusterID)
 		if err != nil {

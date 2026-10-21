@@ -70,11 +70,15 @@ func resourceRancher2SettingCreate(ctx context.Context, d *schema.ResourceData, 
 
 	newSetting := &managementClient.Setting{}
 	err = client.Ops.DoCreateContext(ctx, managementClient.SettingType, setting, newSetting)
+	if newSetting.ID != "" {
+		d.SetId(newSetting.ID)
+	}
 	if err != nil {
 		return err
 	}
-
-	d.SetId(newSetting.ID)
+	if newSetting.ID == "" {
+		return fmt.Errorf("created setting response has no ID; reconcile the server before retrying")
+	}
 
 	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},

@@ -111,7 +111,7 @@ func TestCatalogContextFactory(t *testing.T) {
 func TestMachineConfigContextRead(t *testing.T) {
 	const id = "fleet-default/nc-context"
 	resourcePath := "/k8s/clusters/local/v1/" + machineConfigV2NutanixAPIType + "/" + id
-	for _, name := range []string{"pre_cancel", "initialization_404", "resource_404", "canceled_404_body", "retry_500"} {
+	for _, name := range []string{"pre_cancel", "initialization_404", "resource_404", "canceled_404_body", "retry_500", "foreign_identity"} {
 		t.Run(name, func(t *testing.T) {
 			block := newSettingContextBlock()
 			var resourceCalls atomic.Int32
@@ -125,6 +125,13 @@ func TestMachineConfigContextRead(t *testing.T) {
 				}
 				count := resourceCalls.Add(1)
 				switch name {
+				case "foreign_identity":
+					out := *testMachineConfigV2NutanixConf
+					out.ID = "fleet-default/foreign"
+					if err := json.NewEncoder(w).Encode(&out); err != nil {
+						t.Errorf("foreign identity response: %v", err)
+					}
+					return true
 				case "resource_404":
 					http.Error(w, "resource absent", http.StatusNotFound)
 					return true
@@ -199,7 +206,7 @@ func TestMachineConfigContextRead(t *testing.T) {
 func TestMachineConfigContextDelete(t *testing.T) {
 	const id = "fleet-default/nc-context"
 	resourcePath := "/k8s/clusters/local/v1/" + machineConfigV2NutanixAPIType + "/" + id
-	for _, name := range []string{"pre_cancel", "initialization_404", "mutation_canceled", "mutation_404", "wait_canceled", "success", "snapshot_invalidation"} {
+	for _, name := range []string{"pre_cancel", "initialization_404", "mutation_canceled", "mutation_404", "wait_canceled", "success", "snapshot_invalidation", "foreign_identity"} {
 		t.Run(name, func(t *testing.T) {
 			block := newSettingContextBlock()
 			var deleted atomic.Bool
@@ -216,6 +223,16 @@ func TestMachineConfigContextDelete(t *testing.T) {
 				}
 				if r.Header.Get("Authorization") != "Bearer old-token" {
 					t.Errorf("resource request changed credential snapshot")
+				}
+				if name == "foreign_identity" && r.Method == http.MethodGet {
+					out := *testMachineConfigV2NutanixConf
+					out.ID = "fleet-default/foreign"
+					out.Type = machineConfigV2NutanixAPIType
+					out.Links = map[string]string{"self": "http://" + r.Host + "/foreign"}
+					if err := json.NewEncoder(w).Encode(&out); err != nil {
+						t.Errorf("foreign identity response: %v", err)
+					}
+					return true
 				}
 				if r.Method == http.MethodDelete {
 					deleted.Store(true)
@@ -279,7 +296,7 @@ func TestMachineConfigContextDelete(t *testing.T) {
 			diagnostics := <-result
 			gets, mutations := f.counts()
 			switch name {
-			case "pre_cancel", "initialization_404":
+			case "pre_cancel", "initialization_404", "foreign_identity":
 				require.Zero(t, mutations)
 			default:
 				require.Equal(t, 1, mutations, "uncertain mutations must never be replayed")

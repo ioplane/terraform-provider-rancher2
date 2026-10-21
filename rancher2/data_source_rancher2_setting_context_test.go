@@ -33,7 +33,11 @@ type settingContextFixture struct {
 
 func TestSettingContextMutations(t *testing.T) {
 	for _, operation := range []string{"create", "update", "delete", "reset"} {
-		for _, phase := range []string{"success", "pre-canceled", "mutation-canceled", "forbidden"} {
+		phases := []string{"success", "pre-canceled", "mutation-canceled", "forbidden"}
+		if operation == "create" {
+			phases = append(phases, "decoded-canceled")
+		}
+		for _, phase := range phases {
 			t.Run(operation+"/"+phase, func(t *testing.T) {
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
@@ -117,10 +121,25 @@ func TestSettingContextMutations(t *testing.T) {
 				case "delete", "reset":
 					callback = resource.DeleteWithoutTimeout
 				}
-				diags := callback(ctx, d, f.config())
+				config := f.config()
+				if phase == "decoded-canceled" {
+					client, err := config.settingClientContext(ctx)
+					if err != nil {
+						t.Fatal(err)
+					}
+					transport := client.Ops.Client.Transport
+					client.Ops.Client.Transport = catalogContractTransport(func(r *http.Request) (*http.Response, error) {
+						response, err := transport.RoundTrip(r)
+						if err == nil && r.Method == http.MethodPost {
+							response.Body = &settingCancelAtEOF{ReadCloser: response.Body, cancel: cancel}
+						}
+						return response, err
+					})
+				}
+				diags := callback(ctx, d, config)
 				gets, mutations := f.counts()
 				wantID := "pilot"
-				if operation == "create" && phase != "success" || (operation == "delete" || operation == "reset") && phase == "success" {
+				if operation == "create" && phase != "success" && phase != "decoded-canceled" || (operation == "delete" || operation == "reset") && phase == "success" {
 					wantID = ""
 				}
 				wantMutations := 1
@@ -133,6 +152,19 @@ func TestSettingContextMutations(t *testing.T) {
 			})
 		}
 	}
+}
+
+type settingCancelAtEOF struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+}
+
+func (body *settingCancelAtEOF) Read(p []byte) (int, error) {
+	n, err := body.ReadCloser.Read(p)
+	if errors.Is(err, io.EOF) {
+		body.cancel()
+	}
+	return n, err
 }
 
 func TestSettingContextManagedReadTimeout(t *testing.T) {

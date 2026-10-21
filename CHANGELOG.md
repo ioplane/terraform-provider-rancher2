@@ -35,6 +35,8 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Reject MachineConfig lookup identity mismatches in the shared decoder before refresh or deletion, and retain a decoded Setting creation ID when cancellation arrives at the response boundary.
+
 - Carry the CloudCredential CRUD/import caller context through one client snapshot, HTTP requests, activation, polling and readback; retain known IDs on cancellation and reject foreign lookup identities before writes.
 - Send node-driver activation at most once per CloudCredential creation, return uncertain action failures without replay, and skip activation for an already active driver.
 
