@@ -405,3 +405,115 @@ func TestMachineConfigContextUpdate(t *testing.T) {
 		})
 	}
 }
+
+func TestMachineConfigContextCreate(t *testing.T) {
+	const id = "fleet-default/nc-context"
+	collectionPath := "/k8s/clusters/local/v1/" + machineConfigV2NutanixAPIType
+	for _, name := range []string{"pre_cancel", "mutation_canceled", "empty_identity", "wait_canceled", "deadline", "rbac_recovery", "snapshot_invalidation"} {
+		t.Run(name, func(t *testing.T) {
+			block := newSettingContextBlock()
+			var schemas atomic.Int32
+			var c *Config
+			var f *settingContextFixture
+			f = newSettingContextFixture(t, true, func(w http.ResponseWriter, r *http.Request) bool {
+				if r.URL.Path == "/k8s/clusters/local/v1" {
+					if schemas.Add(1) == 1 && name == "rbac_recovery" {
+						endpoint := "http://" + r.Host + r.URL.Path
+						w.Header().Set("X-API-Schemas", endpoint)
+						response := map[string]any{"data": []any{map[string]any{
+							"id": machineConfigV2NutanixAPIType, "resourceMethods": []string{http.MethodPut}, "collectionMethods": []string{http.MethodPost},
+							"links": map[string]string{"collection": endpoint + "/" + machineConfigV2NutanixAPIType},
+						}}}
+						if err := json.NewEncoder(w).Encode(response); err != nil {
+							t.Errorf("RBAC schema response: %v", err)
+						}
+						return true
+					}
+					return false
+				}
+				if r.URL.Path != collectionPath && r.URL.Path != collectionPath+"/"+id {
+					return false
+				}
+				if r.Header.Get("Authorization") != "Bearer old-token" {
+					t.Errorf("create request changed credential snapshot")
+				}
+				if r.Method == http.MethodPost {
+					switch name {
+					case "mutation_canceled":
+						block.serve(w, r, true, http.StatusOK)
+						return true
+					case "empty_identity":
+						if _, err := w.Write([]byte(`{}`)); err != nil {
+							t.Errorf("empty create response: %v", err)
+						}
+						return true
+					case "snapshot_invalidation":
+						f.reply(t, w, r)
+						if err := c.UpdateToken("new-token"); err != nil {
+							t.Errorf("invalidate snapshot: %v", err)
+						}
+						return true
+					}
+				}
+				if r.Method == http.MethodGet && (name == "wait_canceled" || name == "deadline") {
+					block.serve(w, r, true, http.StatusOK)
+					return true
+				}
+				return false
+			})
+			c = f.config()
+			c.Timeout = 5 * time.Second
+			d := schema.TestResourceDataRaw(t, machineConfigV2Fields(), map[string]any{
+				"generate_name": "context", "nutanix_config": []any{map[string]any{"cluster": "previous", "vm_image": "previous", "vm_network": []any{"previous"}}},
+			})
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer cancel()
+			createCtx, stopCreate := context.WithCancel(ctx)
+			if name == "deadline" {
+				createCtx, stopCreate = context.WithTimeout(ctx, time.Second)
+			}
+			if name == "pre_cancel" {
+				stopCreate()
+			}
+			var wg sync.WaitGroup
+			defer func() { stopCreate(); block.unblock(); wg.Wait() }()
+			result := make(chan diag.Diagnostics, 1)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				result <- resourceRancher2MachineConfigV2().CreateContext(createCtx, d, c)
+			}()
+			if name == "mutation_canceled" || name == "wait_canceled" {
+				settingContextAwait(ctx, t, block.entered)
+				stopCreate()
+			}
+			diagnostics := <-result
+			gets, mutations := f.counts()
+			if name == "pre_cancel" {
+				require.Zero(t, gets)
+				require.Zero(t, mutations)
+			} else {
+				require.Equal(t, 1, mutations, "an uncertain create must not be replayed")
+			}
+			if name == "pre_cancel" || name == "mutation_canceled" || name == "empty_identity" {
+				require.True(t, diagnostics.HasError())
+				require.Empty(t, d.Id(), "an unknown generated ID must not be invented")
+				return
+			}
+			require.Equal(t, id, d.Id())
+			if name == "wait_canceled" || name == "deadline" {
+				require.True(t, diagnostics.HasError())
+				require.Equal(t, "previous", d.Get("nutanix_config.0.cluster"))
+				return
+			}
+			require.False(t, diagnostics.HasError(), "%v", diagnostics)
+			require.Equal(t, testMachineConfigV2NutanixConf.Cluster, d.Get("nutanix_config.0.cluster"))
+			if name == "rbac_recovery" {
+				require.EqualValues(t, 2, schemas.Load(), "RBAC recovery must rediscover schemas without another POST")
+			} else {
+				require.Nil(t, c.contextReady["local"])
+				require.EqualValues(t, 1, schemas.Load(), "invalidation alone must not switch an active operation's snapshot")
+			}
+		})
+	}
+}

@@ -15,7 +15,9 @@ import (
 
 func resourceRancher2MachineConfigV2() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceRancher2MachineConfigV2Create,
+		CreateContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2MachineConfigV2Create(ctx, d, meta))
+		},
 		ReadWithoutTimeout: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
 			return diag.FromErr(readMachineConfigV2Context(ctx, d, meta))
 		},
@@ -45,52 +47,92 @@ func resourceRancher2MachineConfigV2() *schema.Resource {
 	}
 }
 
-func resourceRancher2MachineConfigV2Create(d *schema.ResourceData, meta interface{}) error {
+func resourceRancher2MachineConfigV2Create(ctx context.Context, d *schema.ResourceData, meta any) error {
 	name := d.Get("name").(string)
 	obj := expandMachineConfigV2(d)
 
 	log.Printf("[INFO] Creating Machine Config V2 %s kind %s", name, obj.TypeMeta.Kind)
 
-	newObj, err := createMachineConfigV2(meta.(*Config), obj)
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid machine config configuration type %T", meta)
+	}
+	client, err := config.catalogClientContext(ctx, rancher2DefaultLocalClusterID)
 	if err != nil {
 		return err
 	}
-
-	d.SetId(newObj.ID)
-	d.Set("kind", newObj.TypeMeta.Kind)
+	defer config.closeStaleContextClient(rancher2DefaultLocalClusterID, client)
+	newObj, err := createMachineConfigV2(ctx, client, obj)
+	if newObj != nil && newObj.ID != "" {
+		d.SetId(newObj.ID)
+	}
+	if err != nil {
+		return err
+	}
+	if newObj.ID == "" {
+		return fmt.Errorf("created machine config response has no ID; reconcile the server before retrying")
+	}
+	if err := d.Set("kind", obj.TypeMeta.Kind); err != nil {
+		return err
+	}
 	if err := checkNutanixMachineHardwareEcho(obj.NutanixConfig, newObj.NutanixConfig); err != nil {
 		return err
 	}
 
-	err = waitForMachineConfigV2(d, meta.(*Config), d.Timeout(schema.TimeoutCreate))
+	current, err := waitForMachineConfigV2(ctx, d, config, client)
 	if err != nil {
-		return fmt.Errorf("[ERROR] waiting for machine config (%s) to be active: %s", newObj.ID, err)
+		return fmt.Errorf("wait for machine config %q: %w", newObj.ID, err)
 	}
-
-	return flattenMachineConfigV2(d, newObj)
+	if current.ID != d.Id() {
+		return fmt.Errorf("created machine config lookup identity %q does not match %q", current.ID, d.Id())
+	}
+	if err := checkNutanixMachineHardwareEcho(obj.NutanixConfig, current.NutanixConfig); err != nil {
+		return err
+	}
+	return flattenMachineConfigV2(d, current)
 }
 
-func waitForMachineConfigV2(d *schema.ResourceData, config *Config, interval time.Duration) error {
+func waitForMachineConfigV2(ctx context.Context, d *schema.ResourceData, config *Config, client *clientbase.APIBaseClient) (*MachineConfigV2, error) {
 	log.Printf("[INFO] Waiting for state Machine Config V2 %s", d.Id())
 
-	ctx, cancel := context.WithTimeout(context.Background(), interval)
-	defer cancel()
+	config.contextMu.Lock()
+	timeout := config.Timeout
+	config.contextMu.Unlock()
+	defer func() { config.closeStaleContextClient(rancher2DefaultLocalClusterID, client) }()
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, fmt.Errorf("wait for machine config %q: %w", d.Id(), err)
+		}
 		kind := d.Get("kind").(string)
-		_, err := getMachineConfigV2ByID(config, d.Id(), kind)
+		obj, err := machineConfigV2ByID(kind, func(apiType string, out any) error {
+			if client == nil {
+				var clientErr error
+				client, clientErr = config.catalogClientContext(ctx, rancher2DefaultLocalClusterID)
+				if clientErr != nil {
+					return clientErr
+				}
+			}
+			return machineConfigLookupContext(ctx, client, timeout, d.Id(), apiType, out)
+		})
 		if err == nil {
-			return nil
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			return obj, nil
 		}
 		log.Printf("[INFO] Retrying on error Refreshing Machine Config V2 %s: %v", d.Id(), err)
 		if IsNotAccessibleByID(err) {
-			// Restarting clients to update RBAC
-			config.RestartClients()
+			// Refresh RBAC schemas without the legacy RestartClients management request.
+			config.contextMu.Lock()
+			old := config.invalidateContextClientsLocked()
+			config.contextMu.Unlock()
+			closeContextIdle(old...)
+			config.closeStaleContextClient(rancher2DefaultLocalClusterID, client)
+			client = nil
 		}
 
-		select {
-		case <-time.After(rancher2RetriesWait * time.Second):
-		case <-ctx.Done():
-			return fmt.Errorf("Timeout waiting for machine config V2 ID %s", d.Id())
+		if waitErr := rancherRetryContext(ctx); waitErr != nil {
+			return nil, fmt.Errorf("wait for machine config %q: %w (last error: %w)", d.Id(), waitErr, err)
 		}
 	}
 }
@@ -250,8 +292,8 @@ func machineConfigV2StateRefreshFunc(meta interface{}, objID, kind string) retry
 }
 
 // Rancher2 Machine Config V2 API CRUD functions
-func createMachineConfigV2(c *Config, obj *MachineConfigV2) (*MachineConfigV2, error) {
-	if c == nil {
+func createMachineConfigV2(ctx context.Context, client *clientbase.APIBaseClient, obj *MachineConfigV2) (*MachineConfigV2, error) {
+	if client == nil {
 		return nil, fmt.Errorf("Creating Machine Config V2: Provider config is nil")
 	}
 	if obj == nil {
@@ -263,56 +305,56 @@ func createMachineConfigV2(c *Config, obj *MachineConfigV2) (*MachineConfigV2, e
 	switch kind {
 	case machineConfigV2Amazonec2Kind:
 		resp := &MachineConfigV2Amazonec2{}
-		err = c.createObjectV2(rancher2DefaultLocalClusterID, machineConfigV2Amazonec2APIType, obj.Amazonec2Config, resp)
+		err = client.Ops.DoCreateContext(ctx, machineConfigV2Amazonec2APIType, obj.Amazonec2Config, resp)
 		out.Amazonec2Config = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2AzureKind:
 		resp := &MachineConfigV2Azure{}
-		err = c.createObjectV2(rancher2DefaultLocalClusterID, machineConfigV2AzureAPIType, obj.AzureConfig, resp)
+		err = client.Ops.DoCreateContext(ctx, machineConfigV2AzureAPIType, obj.AzureConfig, resp)
 		out.AzureConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2DigitaloceanKind:
 		resp := &MachineConfigV2Digitalocean{}
-		err = c.createObjectV2(rancher2DefaultLocalClusterID, machineConfigV2DigitaloceanAPIType, obj.DigitaloceanConfig, resp)
+		err = client.Ops.DoCreateContext(ctx, machineConfigV2DigitaloceanAPIType, obj.DigitaloceanConfig, resp)
 		out.DigitaloceanConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2HarvesterKind:
 		resp := &MachineConfigV2Harvester{}
-		err = c.createObjectV2(rancher2DefaultLocalClusterID, machineConfigV2HarvesterAPIType, obj.HarvesterConfig, resp)
+		err = client.Ops.DoCreateContext(ctx, machineConfigV2HarvesterAPIType, obj.HarvesterConfig, resp)
 		out.HarvesterConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2LinodeKind:
 		resp := &MachineConfigV2Linode{}
-		err = c.createObjectV2(rancher2DefaultLocalClusterID, machineConfigV2LinodeAPIType, obj.LinodeConfig, resp)
+		err = client.Ops.DoCreateContext(ctx, machineConfigV2LinodeAPIType, obj.LinodeConfig, resp)
 		out.LinodeConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2OpenstackKind:
 		resp := &MachineConfigV2Openstack{}
-		err = c.createObjectV2(rancher2DefaultLocalClusterID, machineConfigV2OpenstackAPIType, obj.OpenstackConfig, resp)
+		err = client.Ops.DoCreateContext(ctx, machineConfigV2OpenstackAPIType, obj.OpenstackConfig, resp)
 		out.OpenstackConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2VmwarevsphereKind:
 		resp := &MachineConfigV2Vmwarevsphere{}
-		err = c.createObjectV2(rancher2DefaultLocalClusterID, machineConfigV2VmwarevsphereAPIType, obj.VmwarevsphereConfig, resp)
+		err = client.Ops.DoCreateContext(ctx, machineConfigV2VmwarevsphereAPIType, obj.VmwarevsphereConfig, resp)
 		out.VmwarevsphereConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2GoogleGCEKind:
 		resp := &MachineConfigV2GoogleGCE{}
-		err = c.createObjectV2(rancher2DefaultLocalClusterID, machineConfigV2GoogleGCEAPIType, obj.GoogleGCEConfig, resp)
+		err = client.Ops.DoCreateContext(ctx, machineConfigV2GoogleGCEAPIType, obj.GoogleGCEConfig, resp)
 		out.GoogleGCEConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
@@ -322,14 +364,10 @@ func createMachineConfigV2(c *Config, obj *MachineConfigV2) (*MachineConfigV2, e
 		if err := validateNutanixMachineHardware(obj.NutanixConfig); err != nil {
 			return nil, err
 		}
-		client, clientErr := c.CatalogV2Client(rancher2DefaultLocalClusterID)
-		if clientErr != nil {
-			return nil, clientErr
-		}
 		if err := requireNutanixMachineHardware(obj.NutanixConfig, client.Types[machineConfigV2NutanixAPIType], false); err != nil {
 			return nil, err
 		}
-		err = c.createObjectV2(rancher2DefaultLocalClusterID, machineConfigV2NutanixAPIType, obj.NutanixConfig, resp)
+		err = client.Ops.DoCreateContext(ctx, machineConfigV2NutanixAPIType, obj.NutanixConfig, resp)
 		out.NutanixConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
@@ -338,7 +376,7 @@ func createMachineConfigV2(c *Config, obj *MachineConfigV2) (*MachineConfigV2, e
 		return nil, fmt.Errorf("[ERROR] Unsupported driver on node template: %s", kind)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("Creating Machine Config V2: %s", err)
+		return out, fmt.Errorf("create machine config V2: %w", err)
 	}
 	return out, nil
 }

@@ -1,6 +1,7 @@
 package rancher2
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"strings"
@@ -111,7 +112,9 @@ func TestWaitForMachineConfigV2TimeoutPreservesIdentity(t *testing.T) {
 	})
 	d.SetId(id)
 
-	err := waitForMachineConfigV2(d, &Config{}, 0)
+	ctx, cancel := context.WithTimeout(t.Context(), 0)
+	defer cancel()
+	_, err := waitForMachineConfigV2(ctx, d, &Config{}, nil)
 	if err == nil {
 		t.Fatal("expected machine config wait timeout")
 	}

@@ -212,12 +212,12 @@ func TestNutanixMachineHardwareBoundary(t *testing.T) {
 				if tc.update {
 					err = resourceRancher2MachineConfigV2Update(t.Context(), d, config)
 				} else {
-					err = resourceRancher2MachineConfigV2Create(d, config)
+					err = resourceRancher2MachineConfigV2Create(t.Context(), d, config)
 				}
 			case tc.update:
 				_, err = updateMachineConfigV2(t.Context(), client, config.Timeout, obj)
 			default:
-				_, err = createMachineConfigV2(config, obj)
+				_, err = createMachineConfigV2(t.Context(), client, obj)
 			}
 			if tc.missing {
 				require.Error(t, err)

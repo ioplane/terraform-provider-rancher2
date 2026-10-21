@@ -19,6 +19,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Propagate the MachineConfig Create deadline through one POST and readiness; retain known IDs on failure and refresh contextual schemas only at the existing RBAC recovery boundary, without a legacy management request or another POST.
 - Use the native MachineConfig Update deadline and one contextual client snapshot for lookup, a single PUT and final refresh; preserve identity on interrupted, missing or mismatched responses and remove duplicate refresh requests.
 - Propagate the MachineConfig delete caller context through lookup, one DELETE and absence polling with a single client snapshot; canceled or uncertain outcomes preserve identity, and a still-present resource remains pending until lookup confirms absence.
 - Propagate the MachineConfig read caller context through cold Catalog discovery, cache waits and GET retries, reusing the Setting cache algorithm with independent API scopes; schema failures and canceled reads preserve identity.
