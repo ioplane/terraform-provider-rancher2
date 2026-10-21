@@ -7,6 +7,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Require all sixteen Setting lifecycle mutation controls by exact name in fork CI, with at least 132 critical run/pass events.
 - Require the Setting importer and managed-read regression cases by exact name in fork CI, including response-body timeout identity preservation, with at least 115 critical run/pass events.
 - Add isolated exact-head Blacksmith checks for the fork release-v15 line; quarantine inherited release, cloud acceptance, notification and privileged workflows before enabling branch CI. Cloud acceptance remains a separate gate.
 

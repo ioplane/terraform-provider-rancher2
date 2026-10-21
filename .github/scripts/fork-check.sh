@@ -174,7 +174,24 @@ rancher2:TestSettingContextManagedRead/success
 rancher2:TestSettingContextManagedRead/forbidden
 rancher2:TestSettingContextManagedRead/missing
 rancher2:TestSettingContextManagedRead/initialization-missing
-rancher2:TestSettingContextManagedReadTimeout`)
+rancher2:TestSettingContextManagedReadTimeout
+rancher2:TestSettingContextMutations
+rancher2:TestSettingContextMutations/create/success
+rancher2:TestSettingContextMutations/create/pre-canceled
+rancher2:TestSettingContextMutations/create/mutation-canceled
+rancher2:TestSettingContextMutations/create/forbidden
+rancher2:TestSettingContextMutations/update/success
+rancher2:TestSettingContextMutations/update/pre-canceled
+rancher2:TestSettingContextMutations/update/mutation-canceled
+rancher2:TestSettingContextMutations/update/forbidden
+rancher2:TestSettingContextMutations/delete/success
+rancher2:TestSettingContextMutations/delete/pre-canceled
+rancher2:TestSettingContextMutations/delete/mutation-canceled
+rancher2:TestSettingContextMutations/delete/forbidden
+rancher2:TestSettingContextMutations/reset/success
+rancher2:TestSettingContextMutations/reset/pre-canceled
+rancher2:TestSettingContextMutations/reset/mutation-canceled
+rancher2:TestSettingContextMutations/reset/forbidden`)
     runs, passes, packages := map[string]int{}, map[string]int{}, map[string]int{}
     total, top := 0, 0
     for {
@@ -187,7 +204,7 @@ rancher2:TestSettingContextManagedReadTimeout`)
         if event.Action == "pass" { passes[key]++ }
     }
     fmt.Printf("critical test input: %d top-level, %d total run events, %d required names\n", top, total, len(required))
-    if total < 115 { return fmt.Errorf("critical test input shrank: %d < 115", total) }
+    if total < 132 { return fmt.Errorf("critical test input shrank: %d < 132", total) }
     for key, count := range runs { if count != 1 || passes[key] != 1 { return fmt.Errorf("test did not run/pass exactly once: %s run=%d pass=%d", key, count, passes[key]) } }
     for key := range passes { if runs[key] != 1 { return fmt.Errorf("pass without run: %s", key) } }
     for _, key := range required { if runs[prefix+key] != 1 || passes[prefix+key] != 1 { return fmt.Errorf("required test missing: %s", key) } }
@@ -247,7 +264,7 @@ GO
   gate vet go vet ./...
   gate format golangci-lint fmt --diff ./...
   gate lint golangci-lint run --timeout=15m ./...
-  selection='^(TestOriginalRancherCatalogContract|TestCatalogAndHostnameOriginalContract|TestFlattenAppV2|TestExpandChart(Install|Upgrade)(Action)?V2|TestWaitForMachineConfigV2TimeoutPreservesIdentity|TestUpdateSecretV2ConflictRefreshesResourceVersion|TestSecretV2JSONWire|TestSDKOwner.*|TestFlattenSecretV2|TestExpandSecretV2|TestBootstrapReadPreservesIdentity|TestFeatureUpdateRecoversAfterReadinessFailures|TestGetRegistryByFiltersValidation|TestProviderRejectsInvalidCACerts|TestRancherReadinessDeadline|TestSettingContextCancellationPhases|TestSettingContextDefaultRetry|TestSettingContextErrorBodyCauses|TestSettingContextFailures|TestSettingContextGeneration|TestSettingContextLegacyMutex|TestSettingContextOwnerWaiters|TestSettingContextPriorState|TestSettingContextSDKPreCanceled|TestSettingContextSDKState|TestSettingContextTimeouts|TestSettingContextWarmSnapshot|TestSettingContextRetryErrorCauses|TestSettingContextImport|TestSettingContextManagedRead|TestSettingContextManagedReadTimeout)$'
+  selection='^(TestOriginalRancherCatalogContract|TestCatalogAndHostnameOriginalContract|TestFlattenAppV2|TestExpandChart(Install|Upgrade)(Action)?V2|TestWaitForMachineConfigV2TimeoutPreservesIdentity|TestUpdateSecretV2ConflictRefreshesResourceVersion|TestSecretV2JSONWire|TestSDKOwner.*|TestFlattenSecretV2|TestExpandSecretV2|TestBootstrapReadPreservesIdentity|TestFeatureUpdateRecoversAfterReadinessFailures|TestGetRegistryByFiltersValidation|TestProviderRejectsInvalidCACerts|TestRancherReadinessDeadline|TestSettingContextCancellationPhases|TestSettingContextDefaultRetry|TestSettingContextErrorBodyCauses|TestSettingContextFailures|TestSettingContextGeneration|TestSettingContextLegacyMutex|TestSettingContextOwnerWaiters|TestSettingContextPriorState|TestSettingContextSDKPreCanceled|TestSettingContextSDKState|TestSettingContextTimeouts|TestSettingContextWarmSnapshot|TestSettingContextRetryErrorCauses|TestSettingContextImport|TestSettingContextManagedRead|TestSettingContextManagedReadTimeout|TestSettingContextMutations)$'
   gate critical-tests go test -json -race -shuffle=on -covermode=atomic -count=1 -run "$selection" ./internal/ranchercatalog ./rancher2
   gate critical-input /cache/check tests /cache/evidence/critical-tests.log
   gate vulnerability-json govulncheck -db=https://vuln.go.dev -scan=symbol -json ./...
