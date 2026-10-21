@@ -235,7 +235,7 @@ func parseNutanixNICQueues(value string) (int, error) {
 		return 0, fmt.Errorf("invalid Nutanix vm_nic_queues: %w", err)
 	}
 	if queues < 1 {
-		return 0, fmt.Errorf("Nutanix vm_nic_queues must be positive")
+		return 0, fmt.Errorf("invalid Nutanix vm_nic_queues: must be positive")
 	}
 	return queues, nil
 }
@@ -258,14 +258,14 @@ func validateNutanixMachineHardware(in *MachineConfigV2Nutanix) error {
 			return fmt.Errorf("invalid Nutanix vm_cores for queues: %w", err)
 		}
 		if cpus < 1 || cores < 1 || cpus > math.MaxInt64/cores || int64(queues) > cpus*cores {
-			return fmt.Errorf("Nutanix vm_nic_queues requires positive, nonoverflowing vm_cpus * vm_cores with capacity for queues")
+			return fmt.Errorf("invalid Nutanix vm_nic_queues: requires positive, nonoverflowing vm_cpus * vm_cores with capacity for queues")
 		}
 	}
 	if in.VMManagementNetwork == "" {
 		return nil
 	}
 	if _, errs := validation.IsUUID(in.VMManagementNetwork, "vm_management_network"); len(errs) > 0 {
-		return fmt.Errorf("Nutanix vm_management_network must be a subnet UUID")
+		return fmt.Errorf("invalid Nutanix vm_management_network: must be a subnet UUID")
 	}
 	allUUIDs := true
 	for _, network := range in.VMNetwork {
@@ -277,7 +277,7 @@ func validateNutanixMachineHardware(in *MachineConfigV2Nutanix) error {
 		}
 	}
 	if allUUIDs {
-		return fmt.Errorf("Nutanix vm_management_network must be among vm_network UUIDs")
+		return fmt.Errorf("invalid Nutanix vm_management_network: must be among vm_network UUIDs")
 	}
 	// Named attachments are resolved and checked by the driver before VM allocation.
 	return nil
@@ -300,7 +300,7 @@ func requireNutanixMachineHardware(in *MachineConfigV2Nutanix, installed norman.
 			writable = definition.Update
 		}
 		if !ok || definition.Type != "string" || !writable {
-			return fmt.Errorf("Nutanix installed schema lacks writable string field %s", field.name)
+			return fmt.Errorf("installed Nutanix schema lacks writable string field %s", field.name)
 		}
 	}
 	return nil
@@ -313,7 +313,7 @@ func checkNutanixMachineHardwareEcho(want, got *MachineConfigV2Nutanix) error {
 	if got == nil ||
 		(want.VMNicQueues != "" && want.VMNicQueues != got.VMNicQueues) ||
 		(want.VMManagementNetwork != "" && !strings.EqualFold(want.VMManagementNetwork, got.VMManagementNetwork)) {
-		return fmt.Errorf("Nutanix response did not retain requested hardware fields; preserve MachineConfig identity and verify installed schema")
+		return fmt.Errorf("response did not retain requested Nutanix hardware fields; preserve MachineConfig identity and verify installed schema")
 	}
 	return nil
 }
