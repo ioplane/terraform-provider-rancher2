@@ -140,7 +140,7 @@ func resourceRancher2MachineConfigV2Delete(d *schema.ResourceData, meta interfac
 
 	obj, err := getMachineConfigV2ByID(meta.(*Config), d.Id(), kind)
 	if err != nil {
-		if IsNotFound(err) || IsForbidden(err) || IsNotAccessibleByID(err) {
+		if IsNotFound(err) {
 			d.SetId("")
 			return nil
 		}
@@ -171,12 +171,8 @@ func machineConfigV2StateRefreshFunc(meta interface{}, objID, kind string) retry
 	return func() (interface{}, string, error) {
 		obj, err := getMachineConfigV2ByID(meta.(*Config), objID, kind)
 		if err != nil {
-			if IsNotFound(err) || IsForbidden(err) {
+			if IsNotFound(err) {
 				return obj, "removed", nil
-			}
-			// This is required to allow standard user to use this resource
-			if !IsNotAccessibleByID(err) {
-				return obj, "active", nil
 			}
 			return nil, "", err
 		}

@@ -27,6 +27,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Preserve MachineConfig identity when the initial Delete lookup fails, and propagate state-refresh errors instead of confirming active or removed; only lookup HTTP 404 confirms absence.
 - Preserve MachineConfig identity when a successful response drops requested Nutanix hardware fields, and report malformed queue values during refresh instead of silently losing intent.
 - Preserve MachineConfig identity and report access refusal or missing schema GET permission during refresh; only HTTP 404 marks the object absent.
 - Preserve managed Setting identity on cancellation, access refusal and client initialization failure; clear it only after the Setting lookup returns HTTP 404. Managed reads now receive the Terraform caller context.

@@ -382,6 +382,8 @@ The following attributes are exported:
 * `vm_mem` - (Optional) Memory in MB of the VM to be created. Default `2048` (string)
 * `vm_cpus` - (Optional) Number of VCPUs of the VM to be created. Default `2` (string)
 * `vm_cores` - (Optional) Number of cores per VCPU of the VM to be created. Default `1` (string)
+* `vm_nic_queues` - (Optional) Positive queues per NIC, at most `vm_cpus * vm_cores`. No default; omission preserves existing driver behavior. Serialized as a string for the driver (integer)
+* `vm_management_network` - (Optional) Attached subnet UUID for management. No default; named-network resolution and attachment membership are checked by the driver (string)
 * `vm_cpu_passthrough` - (Optional) Enable passthrough of host CPU features to the VM. Default `false` (bool)
 * `vm_image_size` - (Optional) Increase the size of the template image in GiB. Default `0` (string)
 * `vm_categories` - (Optional) Categories to apply to the VM (list)
@@ -393,6 +395,8 @@ The following attributes are exported:
 * `boot_type` - (Optional) Boot type of the VM. Supported values are `legacy` and `uefi`. Default `legacy` (string)
 * `timeout` - (Optional) Timeout for Nutanix operations in seconds. Default `300` (string)
 * `vm_gpu` - (Optional) GPU devices to attach to the VM (list)
+
+Hardware options require matching writable string fields in the installed Rancher schema. Unsupported opt-in fails before writes. A response that drops a requested value returns an error while retaining the MachineConfig ID; no automatic write replay occurs. These checks do not qualify the full DynamicSchema/CRD chain, module/pool compatibility, active guest queues or performance.
 
 ## Timeouts
 

@@ -22,6 +22,7 @@ func TestMachineConfigV2ReadIdentity(t *testing.T) {
 		{name: "forbidden", status: http.StatusForbidden, lookup: true},
 		{name: "not_found", status: http.StatusNotFound, lookup: true},
 		{name: "lookup_denied"},
+		{name: "bad_request", status: http.StatusBadRequest, lookup: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			calls := 0
@@ -53,6 +54,7 @@ func TestMachineConfigV2ReadIdentity(t *testing.T) {
 			config := &Config{Timeout: time.Second, Client: Client{CatalogV2: map[string]*clientbase.APIBaseClient{"local": client}}}
 			d := schema.TestResourceDataRaw(t, map[string]*schema.Schema{
 				"kind": {Type: schema.TypeString, Required: true},
+				"name": {Type: schema.TypeString, Optional: true},
 			}, map[string]any{"kind": machineConfigV2NutanixKind})
 			d.SetId(id)
 			err := resourceRancher2MachineConfigV2Read(d, config)
@@ -69,6 +71,31 @@ func TestMachineConfigV2ReadIdentity(t *testing.T) {
 			}
 			if calls != wantCalls {
 				t.Errorf("lookup calls=%d, want %d", calls, wantCalls)
+			}
+			calls = 0
+			d.SetId(id)
+			err = resourceRancher2MachineConfigV2Delete(d, config)
+			if tc.status == http.StatusNotFound {
+				if err != nil || d.Id() != "" || d.State() != nil {
+					t.Fatalf("404 Delete: err=%v ID=%q state=%v", err, d.Id(), d.State())
+				}
+			} else if err == nil || d.Id() != id || d.State() == nil || d.State().ID != id {
+				t.Fatalf("failed Delete lookup must preserve identity: err=%v ID=%q state=%v", err, d.Id(), d.State())
+			}
+			if calls != wantCalls {
+				t.Errorf("Delete lookup calls=%d, want %d with no DELETE", calls, wantCalls)
+			}
+			calls = 0
+			_, state, err := machineConfigV2StateRefreshFunc(config, id, machineConfigV2NutanixKind)()
+			if tc.status == http.StatusNotFound {
+				if err != nil || state != "removed" {
+					t.Fatalf("404 refresh: err=%v state=%q", err, state)
+				}
+			} else if err == nil || state != "" {
+				t.Fatalf("failed refresh must not confirm a state: err=%v state=%q", err, state)
+			}
+			if calls != wantCalls {
+				t.Errorf("refresh lookup calls=%d, want %d", calls, wantCalls)
 			}
 		})
 	}
