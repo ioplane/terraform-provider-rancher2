@@ -11,6 +11,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Require the readiness deadline parent and all six exact subcases in fork CI, with at least 57 critical run/pass events.
 - Require the provider CA validation parent and all eight exact subcases in fork CI, with at least 50 critical run/pass events.
 - Upgrade Norman to v0.9.12 for the Rancher 2.15 compatibility line, with Kubernetes client libraries v0.37.1 and controller-runtime v0.25.2; the dependency graph includes vendor-required Wrangler v3.8.0-rc.3.
 - Use the pinned Terraform Plugin SDK helper/retry package directly while preserving existing retry and resource lifecycle contracts.
