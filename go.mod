@@ -9,6 +9,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/hashicorp/go-cty v1.5.0
 	github.com/hashicorp/go-version v1.9.0
+	github.com/hashicorp/terraform-plugin-go v0.31.0
 	github.com/rancher/norman v0.9.12
 	github.com/rancher/rancher/pkg/apis v0.0.0
 	github.com/rancher/rancher/pkg/client v0.0.0
@@ -28,11 +29,10 @@ require (
 	github.com/go-openapi/swag/pools v0.27.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
 	github.com/hashicorp/hc-install v0.9.4 // indirect
-	github.com/hashicorp/terraform-plugin-go v0.31.0 // indirect
 	github.com/hashicorp/terraform-plugin-log v0.10.0 // indirect
 	github.com/hashicorp/terraform-registry-address v0.4.0 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
-	golang.org/x/mod v0.41.0 // indirect
+	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/tools v0.51.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 )
@@ -183,3 +183,5 @@ replace (
 replace go.opentelemetry.io/otel/sdk => go.opentelemetry.io/otel/sdk v1.47.0
 
 replace go.opentelemetry.io/otel/sdk/metric => go.opentelemetry.io/otel/sdk/metric v1.47.0
+
+replace github.com/rancher/norman => github.com/ioplane/norman v0.0.0-20261021054442-577653ec763b

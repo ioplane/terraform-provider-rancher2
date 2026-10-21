@@ -11,6 +11,8 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Pin the reviewed Norman context fork for the Setting read pilot while retaining the Rancher 2.15 module line and existing Go floor/toolchain.
+
 - Require the readiness deadline parent and all six exact subcases in fork CI, with at least 57 critical run/pass events.
 - Require the provider CA validation parent and all eight exact subcases in fork CI, with at least 50 critical run/pass events.
 - Upgrade Norman to v0.9.12 for the Rancher 2.15 compatibility line, with Kubernetes client libraries v0.37.1 and controller-runtime v0.25.2; the dependency graph includes vendor-required Wrangler v3.8.0-rc.3.
@@ -18,6 +20,8 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Migrate the provider runtime to Terraform Plugin SDK v2.40.1 with protocol 5 serving; protocol 4 is no longer served. Existing deprecation messages are exposed in the schema, missing required fields use structured SDK diagnostics, and computed-only outputs no longer declare configurable-only MaxItems metadata.
 
 ### Fixed
+
+- Propagate the Setting data source caller context through cold initialization, waiters and HTTP reads; retain prior resource data on errors and isolate cache generations during token updates and restarts.
 
 - Bound Rancher readiness HTTP headers, response bodies and retry waits by positive provider timeouts while preserving the first complete probe for direct nonpositive Config timeouts.
 - Reject nonempty ca_certs without a parseable PEM certificate during provider configuration, including when insecure is enabled.

@@ -143,3 +143,10 @@ Updating Release Version
 * Make sure to update the 'release-please-config.json' file at the root of the repository when adding a new version.
 * Once release/v14 is created this will mean that PRs will need to be made directly to the release/v13 branch to update the version there.
 * Main should have the version from the last created release branch.
+
+Setting read context pilot
+--------------------------
+
+The `rancher2_setting` data source carries the SDK caller context through readiness, schema discovery, default-version lookup, initialization waits and the final read. Its private read-only client cache is separate from legacy management clients. Token updates, client restarts and URL normalization invalidate this cache; an already acquired snapshot may finish with its original credentials. Supported configuration methods synchronize pilot snapshots; concurrent direct writes to exported `Config` fields are outside this contract.
+
+The exact Norman fork replacement in `go.mod` supplies the additive context API. Other resources and legacy client factories retain their existing behavior. The extra cache may add discovery requests and connection pools; this pilot does not establish whole-provider cancellation, binary compatibility, performance or live acceptance.

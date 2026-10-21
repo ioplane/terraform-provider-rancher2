@@ -54,6 +54,11 @@ type Config struct {
 	K8SSupportedVersions []string
 	Sync                 sync.Mutex
 	Client               Client
+	settingMu            sync.Mutex
+	settingGeneration    uint64
+	settingChanged       chan struct{}
+	settingFlight        *settingInit
+	settingReady         *settingClientState
 }
 
 // GetRancherVersion get Rancher server version
@@ -122,8 +127,11 @@ func (c *Config) waitForRancherLocalActive() error {
 }
 
 func (c *Config) getK8SDefaultVersion() (string, error) {
-	if len(c.K8SDefaultVersion) > 0 {
-		return c.K8SDefaultVersion, nil
+	c.settingMu.Lock()
+	version := c.K8SDefaultVersion
+	c.settingMu.Unlock()
+	if len(version) > 0 {
+		return version, nil
 	}
 	var err error
 	if c.Client.Management == nil {
@@ -138,8 +146,11 @@ func (c *Config) getK8SDefaultVersion() (string, error) {
 	for {
 		k8sVer, err := c.Client.Management.Setting.ByID("k8s-version")
 		if err == nil {
-			c.K8SDefaultVersion = k8sVer.Value
-			return c.K8SDefaultVersion, nil
+			version = k8sVer.Value
+			c.settingMu.Lock()
+			c.K8SDefaultVersion = version
+			c.settingMu.Unlock()
+			return version, nil
 		}
 		if !IsServerError(err) && !IsForbidden(err) {
 			return "", err
@@ -195,13 +206,21 @@ func (c *Config) UpdateToken(token string) error {
 	if len(token) == 0 {
 		return fmt.Errorf("token is nil")
 	}
+	c.settingMu.Lock()
 	c.TokenKey = token
+	old := c.invalidateSettingLocked()
+	c.settingMu.Unlock()
+	closeSettingIdle(old)
 
 	return c.RestartClients()
 }
 
 // RestartClients connections
 func (c *Config) RestartClients() error {
+	c.settingMu.Lock()
+	old := c.invalidateSettingLocked()
+	c.settingMu.Unlock()
+	closeSettingIdle(old)
 	c.Sync.Lock()
 	if c.Client.Management != nil {
 		c.Client.Management = nil
@@ -370,7 +389,11 @@ func (c *Config) NormalizeURL() error {
 	if err != nil {
 		return err
 	}
+	c.settingMu.Lock()
 	c.URL = url
+	old := c.invalidateSettingLocked()
+	c.settingMu.Unlock()
+	closeSettingIdle(old)
 	return nil
 }
 
