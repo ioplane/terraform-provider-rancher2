@@ -29,6 +29,44 @@ type settingContextFixture struct {
 	single          bool
 }
 
+func TestSettingContextImport(t *testing.T) {
+	for _, status := range []int{0, http.StatusOK, http.StatusForbidden, http.StatusNotFound} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			f := newSettingContextFixture(t, true, func(w http.ResponseWriter, r *http.Request) bool {
+				if r.URL.Path == "/v3/settings/pilot" && status > http.StatusOK {
+					http.Error(w, "lookup failed", status)
+					return true
+				}
+				return false
+			})
+			d := schema.TestResourceDataRaw(t, settingFields(), map[string]interface{}{"name": "previous", "value": "previous"})
+			d.SetId("pilot")
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if status == 0 {
+				cancel()
+			}
+			states, err := resourceRancher2Setting().Importer.StateContext(ctx, d, f.config())
+			gets, mutations := f.counts()
+			if mutations != 0 {
+				t.Fatalf("import performed %d mutations", mutations)
+			}
+			if status == http.StatusOK {
+				if err != nil || len(states) != 1 || states[0] != d || d.Id() != "pilot" || d.Get("name") != "pilot" || d.Get("value") != "stable" {
+					t.Fatalf("import failed: states=%v error=%v data=%v", states, err, d.State())
+				}
+				return
+			}
+			if err == nil || len(states) != 0 || d.Id() != "pilot" || d.Get("name") != "previous" || d.Get("value") != "previous" {
+				t.Fatalf("failed import changed state: states=%v error=%v data=%v", states, err, d.State())
+			}
+			if status == 0 && (!errors.Is(err, context.Canceled) || gets != 0) {
+				t.Fatalf("canceled import: error=%v GET=%d", err, gets)
+			}
+		})
+	}
+}
+
 func newSettingContextFixture(t *testing.T, single bool, hook func(http.ResponseWriter, *http.Request) bool) *settingContextFixture {
 	t.Helper()
 	f := &settingContextFixture{single: single, hook: hook}

@@ -17,7 +17,7 @@ func resourceRancher2Setting() *schema.Resource {
 		Update: resourceRancher2SettingUpdate,
 		Delete: resourceRancher2SettingDelete,
 		Importer: &schema.ResourceImporter{
-			State: resourceRancher2SettingImport,
+			StateContext: resourceRancher2SettingImport,
 		},
 		Schema: settingFields(),
 	}

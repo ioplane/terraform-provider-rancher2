@@ -21,6 +21,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Propagate Terraform cancellation through Setting imports without publishing imported state on lookup failure.
 - Return a Setting diagnostic for missing, typed-nil or invalid provider metadata without changing prior state or exposing metadata values.
 - Propagate the Setting data source caller context through cold initialization, waiters and HTTP reads; retain prior resource data on errors and isolate cache generations during token updates and restarts.
 
