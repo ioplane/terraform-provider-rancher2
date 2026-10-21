@@ -7,6 +7,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Require the eight MachineConfig context delete events by exact name in fork CI, with at least 178 critical run/pass events.
 - Require the eleven Catalog factory and MachineConfig context read events by exact name in fork CI, with at least 170 critical run/pass events.
 - Require the additional MachineConfig HTTP 400 identity case by exact name; the existing fixture also checks Delete admission and state refresh, with at least 159 critical run/pass events.
 - Require the Nutanix mapping, unknown-plan, wire, capacity and mutation-boundary controls by exact name in fork CI, with at least 158 critical run/pass events.
