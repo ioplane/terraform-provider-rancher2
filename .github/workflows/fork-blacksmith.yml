@@ -3,8 +3,6 @@ name: Fork Blacksmith checks
 on:
   pull_request:
     branches: [fork/release-v15]
-  push:
-    branches: [fork/release-v15]
 
 permissions:
   contents: read

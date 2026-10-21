@@ -37,6 +37,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Security
 
+- Require the Go 1.27.3 compiler in fork CI for the GO-2026-6809 crypto/x509 fix; run provider checks only for pull requests targeting the CI-control branch, which has no product bootstrap inputs; patched-compiler execution and the full hosted checks remain required.
 - Pin the development compiler and preferred module toolchain to Go 1.27.3 for GO-2026-6809 (CVE-2026-111943), which distrusts compromised intermediate certificates in crypto/x509.
 - Remove the root Rancher server module by owning the six catalog wire contracts and hostname bounds used by the provider; preserve nested Rancher API/client modules and Terraform state and schema behavior.
 
