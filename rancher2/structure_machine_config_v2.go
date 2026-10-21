@@ -42,7 +42,9 @@ func flattenMachineConfigV2(d *schema.ResourceData, in *MachineConfigV2) error {
 		return nil
 	}
 	kind := in.TypeMeta.Kind
-	d.Set("kind", kind)
+	if err := d.Set("kind", kind); err != nil {
+		return fmt.Errorf("set machine config kind: %w", err)
+	}
 	switch kind {
 	case machineConfigV2Amazonec2Kind:
 		err := d.Set("amazonec2_config", flattenMachineConfigV2Amazonec2(in.Amazonec2Config))
@@ -97,11 +99,12 @@ func flattenMachineConfigV2(d *schema.ResourceData, in *MachineConfigV2) error {
 		return fmt.Errorf("[ERROR] Unsupported driver on node template: %s", kind)
 	}
 
-	if len(in.ID) > 0 {
-		d.SetId(in.ID)
+	if err := d.Set("name", in.ObjectMeta.Name); err != nil {
+		return fmt.Errorf("set machine config name: %w", err)
 	}
-	d.Set("name", in.ObjectMeta.Name)
-	d.Set("fleet_namespace", in.ObjectMeta.Namespace)
+	if err := d.Set("fleet_namespace", in.ObjectMeta.Namespace); err != nil {
+		return fmt.Errorf("set machine config fleet_namespace: %w", err)
+	}
 	err := d.Set("annotations", toMapInterface(in.ObjectMeta.Annotations))
 	if err != nil {
 		return err
@@ -110,7 +113,12 @@ func flattenMachineConfigV2(d *schema.ResourceData, in *MachineConfigV2) error {
 	if err != nil {
 		return err
 	}
-	d.Set("resource_version", in.ObjectMeta.ResourceVersion)
+	if err := d.Set("resource_version", in.ObjectMeta.ResourceVersion); err != nil {
+		return fmt.Errorf("set machine config resource_version: %w", err)
+	}
+	if len(in.ID) > 0 {
+		d.SetId(in.ID)
+	}
 
 	return nil
 }
