@@ -71,13 +71,13 @@ func resourceRancher2ClusterDriverRead(d *schema.ResourceData, meta interface{})
 	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
 		clusterDriver, err := client.KontainerDriver.ByID(d.Id())
 		if err != nil {
-			if IsNotFound(err) || IsForbidden(err) {
+			if IsNotFound(err) {
 				log.Printf("[INFO] Cluster Driver ID %s not found.", d.Id())
 				d.SetId("")
 				return nil
 			}
 
-			retry.NonRetryableError(err)
+			return retry.NonRetryableError(err)
 		}
 
 		if err = flattenClusterDriver(d, clusterDriver); err != nil {
@@ -145,7 +145,7 @@ func resourceRancher2ClusterDriverDelete(d *schema.ResourceData, meta interface{
 
 	clusterDriver, err := client.KontainerDriver.ByID(id)
 	if err != nil {
-		if IsNotFound(err) || IsForbidden(err) {
+		if IsNotFound(err) {
 			log.Printf("[INFO] Cluster Driver ID %s not found.", id)
 			d.SetId("")
 			return nil
@@ -186,7 +186,7 @@ func clusterDriverStateRefreshFunc(client *managementClient.Client, clusterDrive
 	return func() (interface{}, string, error) {
 		obj, err := client.KontainerDriver.ByID(clusterDriverID)
 		if err != nil {
-			if IsNotFound(err) || IsForbidden(err) {
+			if IsNotFound(err) {
 				return obj, "removed", nil
 			}
 			return nil, "", err

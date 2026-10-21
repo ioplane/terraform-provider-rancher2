@@ -92,7 +92,7 @@ func resourceRancher2CloudCredentialRead(d *schema.ResourceData, meta interface{
 		cloudCredential := &CloudCredential{}
 		err = client.APIBaseClient.ByID(managementClient.CloudCredentialType, d.Id(), cloudCredential)
 		if err != nil {
-			if IsNotFound(err) || IsForbidden(err) {
+			if IsNotFound(err) {
 				log.Printf("[INFO] Cloud Credential ID %s not found.", d.Id())
 				d.SetId("")
 				return nil
@@ -194,7 +194,7 @@ func resourceRancher2CloudCredentialDelete(d *schema.ResourceData, meta interfac
 	cloudCredential := &norman.Resource{}
 	err = client.APIBaseClient.ByID(managementClient.CloudCredentialType, id, cloudCredential)
 	if err != nil {
-		if IsNotFound(err) || IsForbidden(err) {
+		if IsNotFound(err) {
 			log.Printf("[INFO] Cloud Credential ID %s not found.", id)
 			d.SetId("")
 			return nil
@@ -233,7 +233,7 @@ func cloudCredentialStateRefreshFunc(client *managementClient.Client, credential
 		obj := &CloudCredential{}
 		err := client.APIBaseClient.ByID(managementClient.CloudCredentialType, credentialID, obj)
 		if err != nil {
-			if IsNotFound(err) || IsForbidden(err) {
+			if IsNotFound(err) {
 				return obj, "removed", nil
 			}
 			return nil, "", err

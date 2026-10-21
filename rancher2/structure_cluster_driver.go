@@ -1,6 +1,8 @@
 package rancher2
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
@@ -12,14 +14,27 @@ func flattenClusterDriver(d *schema.ResourceData, in *managementClient.Kontainer
 		return nil
 	}
 
-	d.SetId(in.ID)
-	d.Set("active", in.Active)
-	d.Set("actual_url", in.ActualURL)
-	d.Set("builtin", in.BuiltIn)
-	d.Set("checksum", in.Checksum)
-	d.Set("name", in.Name)
-	d.Set("ui_url", in.UIURL)
-	d.Set("url", in.URL)
+	if err := d.Set("active", in.Active); err != nil {
+		return fmt.Errorf("set cluster driver active: %w", err)
+	}
+	if err := d.Set("actual_url", in.ActualURL); err != nil {
+		return fmt.Errorf("set cluster driver actual_url: %w", err)
+	}
+	if err := d.Set("builtin", in.BuiltIn); err != nil {
+		return fmt.Errorf("set cluster driver builtin: %w", err)
+	}
+	if err := d.Set("checksum", in.Checksum); err != nil {
+		return fmt.Errorf("set cluster driver checksum: %w", err)
+	}
+	if err := d.Set("name", in.Name); err != nil {
+		return fmt.Errorf("set cluster driver name: %w", err)
+	}
+	if err := d.Set("ui_url", in.UIURL); err != nil {
+		return fmt.Errorf("set cluster driver ui_url: %w", err)
+	}
+	if err := d.Set("url", in.URL); err != nil {
+		return fmt.Errorf("set cluster driver url: %w", err)
+	}
 
 	err := d.Set("whitelist_domains", toArrayInterface(in.WhitelistDomains))
 	if err != nil {
@@ -36,6 +51,7 @@ func flattenClusterDriver(d *schema.ResourceData, in *managementClient.Kontainer
 		return err
 	}
 
+	d.SetId(in.ID)
 	return nil
 
 }

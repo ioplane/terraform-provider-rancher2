@@ -14,10 +14,13 @@ func flattenFeature(d *schema.ResourceData, in *managementClient.Feature) error 
 		return fmt.Errorf("[ERROR] flattening feature: Input setting is nil")
 	}
 
-	d.SetId(in.ID)
-	d.Set("name", in.Name)
+	if err := d.Set("name", in.Name); err != nil {
+		return fmt.Errorf("set feature name: %w", err)
+	}
 	if in.Value != nil {
-		d.Set("value", *in.Value)
+		if err := d.Set("value", *in.Value); err != nil {
+			return fmt.Errorf("set feature value: %w", err)
+		}
 	}
 
 	err := d.Set("annotations", toMapInterface(in.Annotations))
@@ -29,6 +32,7 @@ func flattenFeature(d *schema.ResourceData, in *managementClient.Feature) error 
 		return err
 	}
 
+	d.SetId(in.ID)
 	return nil
 }
 

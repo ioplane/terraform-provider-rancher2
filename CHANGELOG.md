@@ -34,7 +34,8 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- Return MachineConfig and NodeDriver state-write errors instead of ignoring them, and retain the prior identity until flattening succeeds.
+- Preserve CloudCredential and ClusterDriver identity on refused lookups, and propagate ClusterDriver GET errors instead of reporting a successful refresh; only HTTP 404 confirms absence.
+- Return MachineConfig, NodeDriver, ClusterDriver and Feature state-write errors instead of ignoring them, and retain the prior identity until flattening succeeds.
 - Preserve NodeDriver identity and return access errors on HTTP 403 during refresh, deletion lookup and readiness polling; only HTTP 404 confirms absence.
 - Preserve Feature identity on a refused GET403 and propagate the lookup error from readiness; only GET404 confirms absence.
 - Preserve MachineConfig identity when the initial Delete lookup fails, and propagate state-refresh errors instead of confirming active or removed; only lookup HTTP 404 confirms absence.

@@ -15,8 +15,31 @@ import (
 )
 
 func TestNodeDriverIdentity(t *testing.T) {
+	testProvisioningLookupIdentity(t, "nodeDriver")
+}
+
+func TestCloudCredentialIdentity(t *testing.T) {
+	testProvisioningLookupIdentity(t, "cloudCredential")
+}
+
+func TestClusterDriverIdentity(t *testing.T) {
+	testProvisioningLookupIdentity(t, "kontainerDriver")
+}
+
+func testProvisioningLookupIdentity(t *testing.T, kind string) {
+	t.Helper()
+	fields := nodeDriverFields
+	read, remove, refresh := resourceRancher2NodeDriverRead, resourceRancher2NodeDriverDelete, nodeDriverStateRefreshFunc
+	switch kind {
+	case "cloudCredential":
+		fields = cloudCredentialFields
+		read, remove, refresh = resourceRancher2CloudCredentialRead, resourceRancher2CloudCredentialDelete, cloudCredentialStateRefreshFunc
+	case "kontainerDriver":
+		fields = clusterDriverFields
+		read, remove, refresh = resourceRancher2ClusterDriverRead, resourceRancher2ClusterDriverDelete, clusterDriverStateRefreshFunc
+	}
 	for _, action := range []string{"read", "delete", "refresh"} {
-		for _, status := range []int{http.StatusForbidden, http.StatusNotFound} {
+		for _, status := range []int{http.StatusForbidden, http.StatusNotFound, http.StatusInternalServerError} {
 			t.Run(fmt.Sprintf("%s_%d", action, status), func(t *testing.T) {
 				const id = "synthetic-driver"
 				var reads atomic.Int32
@@ -31,13 +54,13 @@ func TestNodeDriverIdentity(t *testing.T) {
 						w.Header().Set("Content-Type", "application/json")
 						w.Header().Set("X-API-Schemas", base)
 						if err := json.NewEncoder(w).Encode(map[string]interface{}{"data": []interface{}{
-							map[string]interface{}{"id": "nodeDriver", "links": map[string]string{"collection": base + "/nodeDrivers"}, "resourceMethods": []string{"GET", "DELETE"}},
+							map[string]interface{}{"id": kind, "links": map[string]string{"collection": base + "/" + kind + "s"}, "resourceMethods": []string{"GET", "DELETE"}},
 						}}); err != nil {
 							t.Errorf("encode schema: %v", err)
 						}
 						return
 					}
-					if r.URL.Path != "/v3/nodeDrivers/"+id {
+					if r.URL.Path != "/v3/"+kind+"s/"+id {
 						t.Errorf("unexpected request: %s", r.URL.Path)
 						w.WriteHeader(http.StatusBadRequest)
 						return
@@ -51,23 +74,26 @@ func TestNodeDriverIdentity(t *testing.T) {
 					t.Fatalf("initialize fixture client: %v", err)
 				}
 				config := &Config{Client: Client{Management: client}}
-				d := schema.TestResourceDataRaw(t, nodeDriverFields(), map[string]interface{}{"active": true, "builtin": false, "name": id, "url": "https://example.invalid/driver"})
+				d := schema.TestResourceDataRaw(t, fields(), map[string]interface{}{"name": id})
 				d.SetId(id)
 				switch action {
 				case "read":
-					err = resourceRancher2NodeDriverRead(d, config)
+					err = read(d, config)
 				case "delete":
-					err = resourceRancher2NodeDriverDelete(d, config)
+					err = remove(d, config)
 				case "refresh":
 					var state string
-					_, state, err = nodeDriverStateRefreshFunc(client, id)()
-					if status == http.StatusForbidden && state != "" || status == http.StatusNotFound && state != "removed" {
+					_, state, err = refresh(client, id)()
+					if status != http.StatusNotFound && state != "" || status == http.StatusNotFound && state != "removed" {
 						t.Errorf("refresh state = %q for HTTP %d", state, status)
 					}
 				}
-				if status == http.StatusForbidden {
+				if status != http.StatusNotFound {
 					if err == nil || d.Id() != id || d.State() == nil || d.State().ID != id {
-						t.Fatalf("HTTP 403 must retain identity and return error: ID=%q error=%v", d.Id(), err)
+						t.Fatalf("HTTP %d must retain identity and return error: ID=%q error=%v", status, d.Id(), err)
+					}
+					if status == http.StatusForbidden && !IsForbidden(err) || status == http.StatusInternalServerError && !IsServerError(err) {
+						t.Fatalf("lookup error lost HTTP %d: %v", status, err)
 					}
 				} else if err != nil || action != "refresh" && d.Id() != "" {
 					t.Fatalf("HTTP 404 must confirm absence: ID=%q error=%v", d.Id(), err)
