@@ -155,6 +155,13 @@ rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/update_503_recovers
 rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/update_403_fails
 rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/read_403_preserves_identity
 rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/read_404_confirms_absence
+rancher2:TestNodeDriverIdentity
+rancher2:TestNodeDriverIdentity/read_403
+rancher2:TestNodeDriverIdentity/read_404
+rancher2:TestNodeDriverIdentity/delete_403
+rancher2:TestNodeDriverIdentity/delete_404
+rancher2:TestNodeDriverIdentity/refresh_403
+rancher2:TestNodeDriverIdentity/refresh_404
 rancher2:TestGetRegistryByFiltersValidation
 rancher2:TestGetRegistryByFiltersValidation/nil_filters
 rancher2:TestGetRegistryByFiltersValidation/missing_name
@@ -268,7 +275,7 @@ rancher2:TestSettingContextMutations/reset/forbidden`)
         if event.Action == "pass" { passes[key]++ }
     }
     fmt.Printf("critical test input: %d top-level, %d total run events, %d required names\n", top, total, len(required))
-    if total < 196 { return fmt.Errorf("critical test input shrank: %d < 196", total) }
+    if total < 203 { return fmt.Errorf("critical test input shrank: %d < 203", total) }
     for key, count := range runs { if count != 1 || passes[key] != 1 { return fmt.Errorf("test did not run/pass exactly once: %s run=%d pass=%d", key, count, passes[key]) } }
     for key := range passes { if runs[key] != 1 { return fmt.Errorf("pass without run: %s", key) } }
     for _, key := range required { if runs[prefix+key] != 1 || passes[prefix+key] != 1 { return fmt.Errorf("required test missing: %s", key) } }
@@ -328,7 +335,7 @@ GO
   gate vet go vet ./...
   gate format golangci-lint fmt --diff ./...
   gate lint golangci-lint run --timeout=15m ./...
-  selection='^(TestOriginalRancherCatalogContract|TestCatalogAndHostnameOriginalContract|TestFlattenAppV2|TestExpandChart(Install|Upgrade)(Action)?V2|TestWaitForMachineConfigV2TimeoutPreservesIdentity|TestMachineConfigV2ReadIdentity|TestCatalogContextFactory|TestMachineConfigContextRead|TestMachineConfigContextDelete|TestMachineConfigContextUpdate|TestMachineConfigContextCreate|Test(Expand|Flatten)MachineConfigV2Nutanix|TestNutanixMachineHardware(Plan|Wire|Validation|Boundary)|TestUpdateSecretV2ConflictRefreshesResourceVersion|TestSecretV2JSONWire|TestSDKOwner.*|TestFlattenSecretV2|TestExpandSecretV2|TestBootstrapReadPreservesIdentity|TestFeatureUpdateRecoversAfterReadinessFailures|TestGetRegistryByFiltersValidation|TestProviderRejectsInvalidCACerts|TestRancherReadinessDeadline|TestSettingContextCancellationPhases|TestSettingContextDefaultRetry|TestSettingContextErrorBodyCauses|TestSettingContextFailures|TestSettingContextGeneration|TestSettingContextLegacyMutex|TestSettingContextOwnerWaiters|TestSettingContextPriorState|TestSettingContextSDKPreCanceled|TestSettingContextSDKState|TestSettingContextTimeouts|TestSettingContextWarmSnapshot|TestSettingContextRetryErrorCauses|TestSettingContextImport|TestSettingContextManagedRead|TestSettingContextManagedReadTimeout|TestSettingContextMutations)$'
+  selection='^(TestOriginalRancherCatalogContract|TestCatalogAndHostnameOriginalContract|TestFlattenAppV2|TestExpandChart(Install|Upgrade)(Action)?V2|TestWaitForMachineConfigV2TimeoutPreservesIdentity|TestMachineConfigV2ReadIdentity|TestCatalogContextFactory|TestMachineConfigContextRead|TestMachineConfigContextDelete|TestMachineConfigContextUpdate|TestMachineConfigContextCreate|Test(Expand|Flatten)MachineConfigV2Nutanix|TestNutanixMachineHardware(Plan|Wire|Validation|Boundary)|TestUpdateSecretV2ConflictRefreshesResourceVersion|TestSecretV2JSONWire|TestSDKOwner.*|TestFlattenSecretV2|TestExpandSecretV2|TestBootstrapReadPreservesIdentity|TestFeatureUpdateRecoversAfterReadinessFailures|TestNodeDriverIdentity|TestGetRegistryByFiltersValidation|TestProviderRejectsInvalidCACerts|TestRancherReadinessDeadline|TestSettingContextCancellationPhases|TestSettingContextDefaultRetry|TestSettingContextErrorBodyCauses|TestSettingContextFailures|TestSettingContextGeneration|TestSettingContextLegacyMutex|TestSettingContextOwnerWaiters|TestSettingContextPriorState|TestSettingContextSDKPreCanceled|TestSettingContextSDKState|TestSettingContextTimeouts|TestSettingContextWarmSnapshot|TestSettingContextRetryErrorCauses|TestSettingContextImport|TestSettingContextManagedRead|TestSettingContextManagedReadTimeout|TestSettingContextMutations)$'
   gate critical-tests go test -json -race -shuffle=on -covermode=atomic -count=1 -run "$selection" ./internal/ranchercatalog ./rancher2
   gate critical-input /cache/check tests /cache/evidence/critical-tests.log
   gate vulnerability-json govulncheck -db=https://vuln.go.dev -scan=symbol -json ./...
