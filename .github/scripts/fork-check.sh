@@ -155,6 +155,54 @@ rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/update_503_recovers
 rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/update_403_fails
 rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/read_403_preserves_identity
 rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/read_404_confirms_absence
+rancher2:TestProvisioningStateWriteErrors/cluster_driver/active
+rancher2:TestProvisioningStateWriteErrors/cluster_driver/labels
+rancher2:TestProvisioningStateWriteErrors/feature/name
+rancher2:TestProvisioningStateWriteErrors/feature/labels
+rancher2:TestFlattenClusterDriver
+rancher2:TestExpandClusterDriver
+rancher2:TestFlattenFeature
+rancher2:TestExpandFeature
+rancher2:TestProvisioningStateWriteErrors
+rancher2:TestProvisioningStateWriteErrors/machine_config/kind
+rancher2:TestProvisioningStateWriteErrors/machine_config/name
+rancher2:TestProvisioningStateWriteErrors/machine_config/fleet_namespace
+rancher2:TestProvisioningStateWriteErrors/machine_config/resource_version
+rancher2:TestProvisioningStateWriteErrors/machine_config/labels
+rancher2:TestProvisioningStateWriteErrors/node_driver/active
+rancher2:TestProvisioningStateWriteErrors/node_driver/builtin
+rancher2:TestProvisioningStateWriteErrors/node_driver/checksum
+rancher2:TestProvisioningStateWriteErrors/node_driver/description
+rancher2:TestProvisioningStateWriteErrors/node_driver/name
+rancher2:TestProvisioningStateWriteErrors/node_driver/external_id
+rancher2:TestProvisioningStateWriteErrors/node_driver/ui_url
+rancher2:TestProvisioningStateWriteErrors/node_driver/url
+rancher2:TestProvisioningStateWriteErrors/node_driver/labels
+rancher2:TestCloudCredentialIdentity
+rancher2:TestCloudCredentialIdentity/read_403
+rancher2:TestCloudCredentialIdentity/read_404
+rancher2:TestCloudCredentialIdentity/read_500
+rancher2:TestCloudCredentialIdentity/delete_403
+rancher2:TestCloudCredentialIdentity/delete_404
+rancher2:TestCloudCredentialIdentity/delete_500
+rancher2:TestCloudCredentialIdentity/refresh_403
+rancher2:TestCloudCredentialIdentity/refresh_404
+rancher2:TestCloudCredentialIdentity/refresh_500
+rancher2:TestClusterDriverIdentity
+rancher2:TestClusterDriverIdentity/read_403
+rancher2:TestClusterDriverIdentity/read_404
+rancher2:TestClusterDriverIdentity/read_500
+rancher2:TestClusterDriverIdentity/delete_403
+rancher2:TestClusterDriverIdentity/delete_404
+rancher2:TestClusterDriverIdentity/delete_500
+rancher2:TestClusterDriverIdentity/refresh_403
+rancher2:TestClusterDriverIdentity/refresh_404
+rancher2:TestClusterDriverIdentity/refresh_500
+rancher2:TestNodeDriverIdentity/read_500
+rancher2:TestNodeDriverIdentity/delete_500
+rancher2:TestNodeDriverIdentity/refresh_500
+rancher2:TestFlattenNodeDriver
+rancher2:TestExpandNodeDriver
 rancher2:TestNodeDriverIdentity
 rancher2:TestNodeDriverIdentity/read_403
 rancher2:TestNodeDriverIdentity/read_404
@@ -275,7 +323,7 @@ rancher2:TestSettingContextMutations/reset/forbidden`)
         if event.Action == "pass" { passes[key]++ }
     }
     fmt.Printf("critical test input: %d top-level, %d total run events, %d required names\n", top, total, len(required))
-    if total < 203 { return fmt.Errorf("critical test input shrank: %d < 203", total) }
+    if total < 251 { return fmt.Errorf("critical test input shrank: %d < 251", total) }
     for key, count := range runs { if count != 1 || passes[key] != 1 { return fmt.Errorf("test did not run/pass exactly once: %s run=%d pass=%d", key, count, passes[key]) } }
     for key := range passes { if runs[key] != 1 { return fmt.Errorf("pass without run: %s", key) } }
     for _, key := range required { if runs[prefix+key] != 1 || passes[prefix+key] != 1 { return fmt.Errorf("required test missing: %s", key) } }
@@ -335,7 +383,7 @@ GO
   gate vet go vet ./...
   gate format golangci-lint fmt --diff ./...
   gate lint golangci-lint run --timeout=15m ./...
-  selection='^(TestOriginalRancherCatalogContract|TestCatalogAndHostnameOriginalContract|TestFlattenAppV2|TestExpandChart(Install|Upgrade)(Action)?V2|TestWaitForMachineConfigV2TimeoutPreservesIdentity|TestMachineConfigV2ReadIdentity|TestCatalogContextFactory|TestMachineConfigContextRead|TestMachineConfigContextDelete|TestMachineConfigContextUpdate|TestMachineConfigContextCreate|Test(Expand|Flatten)MachineConfigV2Nutanix|TestNutanixMachineHardware(Plan|Wire|Validation|Boundary)|TestUpdateSecretV2ConflictRefreshesResourceVersion|TestSecretV2JSONWire|TestSDKOwner.*|TestFlattenSecretV2|TestExpandSecretV2|TestBootstrapReadPreservesIdentity|TestFeatureUpdateRecoversAfterReadinessFailures|TestNodeDriverIdentity|TestGetRegistryByFiltersValidation|TestProviderRejectsInvalidCACerts|TestRancherReadinessDeadline|TestSettingContextCancellationPhases|TestSettingContextDefaultRetry|TestSettingContextErrorBodyCauses|TestSettingContextFailures|TestSettingContextGeneration|TestSettingContextLegacyMutex|TestSettingContextOwnerWaiters|TestSettingContextPriorState|TestSettingContextSDKPreCanceled|TestSettingContextSDKState|TestSettingContextTimeouts|TestSettingContextWarmSnapshot|TestSettingContextRetryErrorCauses|TestSettingContextImport|TestSettingContextManagedRead|TestSettingContextManagedReadTimeout|TestSettingContextMutations)$'
+  selection='^(TestOriginalRancherCatalogContract|TestCatalogAndHostnameOriginalContract|TestFlattenAppV2|TestExpandChart(Install|Upgrade)(Action)?V2|TestWaitForMachineConfigV2TimeoutPreservesIdentity|TestMachineConfigV2ReadIdentity|TestCatalogContextFactory|TestMachineConfigContextRead|TestMachineConfigContextDelete|TestMachineConfigContextUpdate|TestMachineConfigContextCreate|Test(Expand|Flatten)MachineConfigV2Nutanix|TestNutanixMachineHardware(Plan|Wire|Validation|Boundary)|TestUpdateSecretV2ConflictRefreshesResourceVersion|TestSecretV2JSONWire|TestSDKOwner.*|TestFlattenSecretV2|TestExpandSecretV2|TestBootstrapReadPreservesIdentity|TestFeatureUpdateRecoversAfterReadinessFailures|TestProvisioningStateWriteErrors|Test(CloudCredential|ClusterDriver)Identity|Test(Flatten|Expand)(NodeDriver|ClusterDriver|Feature)|TestNodeDriverIdentity|TestGetRegistryByFiltersValidation|TestProviderRejectsInvalidCACerts|TestRancherReadinessDeadline|TestSettingContextCancellationPhases|TestSettingContextDefaultRetry|TestSettingContextErrorBodyCauses|TestSettingContextFailures|TestSettingContextGeneration|TestSettingContextLegacyMutex|TestSettingContextOwnerWaiters|TestSettingContextPriorState|TestSettingContextSDKPreCanceled|TestSettingContextSDKState|TestSettingContextTimeouts|TestSettingContextWarmSnapshot|TestSettingContextRetryErrorCauses|TestSettingContextImport|TestSettingContextManagedRead|TestSettingContextManagedReadTimeout|TestSettingContextMutations)$'
   gate critical-tests go test -json -race -shuffle=on -covermode=atomic -count=1 -run "$selection" ./internal/ranchercatalog ./rancher2
   gate critical-input /cache/check tests /cache/evidence/critical-tests.log
   gate vulnerability-json govulncheck -db=https://vuln.go.dev -scan=symbol -json ./...
