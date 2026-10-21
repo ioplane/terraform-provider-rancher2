@@ -116,7 +116,53 @@ rancher2:TestRancherReadinessDeadline/body
 rancher2:TestRancherReadinessDeadline/zero_first_probe
 rancher2:TestRancherReadinessDeadline/negative_first_probe
 rancher2:TestRancherReadinessDeadline/pong
-rancher2:TestRancherReadinessDeadline/unexpected_reply`)
+rancher2:TestRancherReadinessDeadline/unexpected_reply
+rancher2:TestSettingContextCancellationPhases
+rancher2:TestSettingContextCancellationPhases/default_body
+rancher2:TestSettingContextCancellationPhases/default_headers
+rancher2:TestSettingContextCancellationPhases/final_body
+rancher2:TestSettingContextCancellationPhases/final_headers
+rancher2:TestSettingContextCancellationPhases/ping_body
+rancher2:TestSettingContextCancellationPhases/ping_headers
+rancher2:TestSettingContextCancellationPhases/schema1_body_single
+rancher2:TestSettingContextCancellationPhases/schema1_headers
+rancher2:TestSettingContextCancellationPhases/schema2_body
+rancher2:TestSettingContextCancellationPhases/schema2_headers
+rancher2:TestSettingContextDefaultRetry
+rancher2:TestSettingContextDefaultRetry/negative_500_first_probe
+rancher2:TestSettingContextDefaultRetry/positive_500_recovery
+rancher2:TestSettingContextDefaultRetry/zero_403_first_probe
+rancher2:TestSettingContextErrorBodyCauses
+rancher2:TestSettingContextErrorBodyCauses/403
+rancher2:TestSettingContextErrorBodyCauses/500
+rancher2:TestSettingContextFailures
+rancher2:TestSettingContextFailures/default_401
+rancher2:TestSettingContextFailures/default_503
+rancher2:TestSettingContextFailures/final_403
+rancher2:TestSettingContextFailures/final_404
+rancher2:TestSettingContextFailures/final_decode
+rancher2:TestSettingContextFailures/schema
+rancher2:TestSettingContextGeneration
+rancher2:TestSettingContextGeneration/canceled_old_owner
+rancher2:TestSettingContextGeneration/successful_old_owner
+rancher2:TestSettingContextLegacyMutex
+rancher2:TestSettingContextOwnerWaiters
+rancher2:TestSettingContextOwnerWaiters/owner_cancel
+rancher2:TestSettingContextOwnerWaiters/waiter_cancel
+rancher2:TestSettingContextPriorState
+rancher2:TestSettingContextSDKPreCanceled
+rancher2:TestSettingContextSDKState
+rancher2:TestSettingContextTimeouts
+rancher2:TestSettingContextTimeouts/negative_failure
+rancher2:TestSettingContextTimeouts/negative_first_probe
+rancher2:TestSettingContextTimeouts/positive
+rancher2:TestSettingContextTimeouts/shorter_parent
+rancher2:TestSettingContextTimeouts/zero_failure
+rancher2:TestSettingContextTimeouts/zero_first_probe
+rancher2:TestSettingContextWarmSnapshot
+rancher2:TestSettingContextRetryErrorCauses
+rancher2:TestSettingContextRetryErrorCauses/readiness
+rancher2:TestSettingContextRetryErrorCauses/default`)
     runs, passes, packages := map[string]int{}, map[string]int{}, map[string]int{}
     total, top := 0, 0
     for {
@@ -129,7 +175,7 @@ rancher2:TestRancherReadinessDeadline/unexpected_reply`)
         if event.Action == "pass" { passes[key]++ }
     }
     fmt.Printf("critical test input: %d top-level, %d total run events, %d required names\n", top, total, len(required))
-    if total < 57 { return fmt.Errorf("critical test input shrank: %d < 57", total) }
+    if total < 103 { return fmt.Errorf("critical test input shrank: %d < 103", total) }
     for key, count := range runs { if count != 1 || passes[key] != 1 { return fmt.Errorf("test did not run/pass exactly once: %s run=%d pass=%d", key, count, passes[key]) } }
     for key := range passes { if runs[key] != 1 { return fmt.Errorf("pass without run: %s", key) } }
     for _, key := range required { if runs[prefix+key] != 1 || passes[prefix+key] != 1 { return fmt.Errorf("required test missing: %s", key) } }
@@ -189,7 +235,7 @@ GO
   gate vet go vet ./...
   gate format golangci-lint fmt --diff ./...
   gate lint golangci-lint run --timeout=15m ./...
-  selection='^(TestOriginalRancherCatalogContract|TestCatalogAndHostnameOriginalContract|TestFlattenAppV2|TestExpandChart(Install|Upgrade)(Action)?V2|TestWaitForMachineConfigV2TimeoutPreservesIdentity|TestUpdateSecretV2ConflictRefreshesResourceVersion|TestSecretV2JSONWire|TestSDKOwner.*|TestFlattenSecretV2|TestExpandSecretV2|TestBootstrapReadPreservesIdentity|TestFeatureUpdateRecoversAfterReadinessFailures|TestGetRegistryByFiltersValidation|TestProviderRejectsInvalidCACerts|TestRancherReadinessDeadline)$'
+  selection='^(TestOriginalRancherCatalogContract|TestCatalogAndHostnameOriginalContract|TestFlattenAppV2|TestExpandChart(Install|Upgrade)(Action)?V2|TestWaitForMachineConfigV2TimeoutPreservesIdentity|TestUpdateSecretV2ConflictRefreshesResourceVersion|TestSecretV2JSONWire|TestSDKOwner.*|TestFlattenSecretV2|TestExpandSecretV2|TestBootstrapReadPreservesIdentity|TestFeatureUpdateRecoversAfterReadinessFailures|TestGetRegistryByFiltersValidation|TestProviderRejectsInvalidCACerts|TestRancherReadinessDeadline|TestSettingContextCancellationPhases|TestSettingContextDefaultRetry|TestSettingContextErrorBodyCauses|TestSettingContextFailures|TestSettingContextGeneration|TestSettingContextLegacyMutex|TestSettingContextOwnerWaiters|TestSettingContextPriorState|TestSettingContextSDKPreCanceled|TestSettingContextSDKState|TestSettingContextTimeouts|TestSettingContextWarmSnapshot|TestSettingContextRetryErrorCauses)$'
   gate critical-tests go test -json -race -shuffle=on -covermode=atomic -count=1 -run "$selection" ./internal/ranchercatalog ./rancher2
   gate critical-input /cache/check tests /cache/evidence/critical-tests.log
   gate vulnerability-json govulncheck -db=https://vuln.go.dev -scan=symbol -json ./...
