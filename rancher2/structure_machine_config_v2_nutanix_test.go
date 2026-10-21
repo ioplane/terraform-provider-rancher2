@@ -1,7 +1,6 @@
 package rancher2
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,7 +21,7 @@ import (
 )
 
 func TestNutanixMachineHardwarePlan(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	rpc := schema.NewGRPCProviderServer(&schema.Provider{ResourcesMap: map[string]*schema.Resource{
 		"rancher2_machine_config_v2": resourceRancher2MachineConfigV2(),
 	}})
@@ -78,7 +77,7 @@ func TestNutanixMachineHardwarePlan(t *testing.T) {
 				}
 			}
 			if name == "known_excess" {
-				require.NotEmpty(t, errors, "known invalid hardware must still fail planning")
+				require.Contains(t, strings.Join(errors, " "), "vm_cpus * vm_cores", "known invalid hardware must still fail capacity validation")
 			} else {
 				require.Empty(t, errors, "unknown leaves must defer validation")
 				require.NotNil(t, resp.PlannedState)
