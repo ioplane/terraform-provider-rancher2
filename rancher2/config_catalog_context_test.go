@@ -340,6 +340,8 @@ func TestMachineConfigContextUpdate(t *testing.T) {
 						}
 						return true
 					}
+					f.reply(t, w, r)
+					return true
 				}
 				if r.Method == http.MethodGet && mutated.Load() {
 					switch name {
@@ -454,6 +456,8 @@ func TestMachineConfigContextCreate(t *testing.T) {
 						}
 						return true
 					}
+					f.reply(t, w, r)
+					return true
 				}
 				if r.Method == http.MethodGet && (name == "wait_canceled" || name == "deadline") {
 					block.serve(w, r, true, http.StatusOK)
