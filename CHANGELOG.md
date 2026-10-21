@@ -8,6 +8,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Add opt-in Nutanix NIC queues and management subnet fields with no defaults, integer-to-string wire conversion, overflow-safe CPU capacity validation and installed-schema checks before writes.
+- Require the eleven Catalog factory and MachineConfig context read events by exact name in fork CI, with at least 170 critical run/pass events.
 - Require the additional MachineConfig HTTP 400 identity case by exact name; the existing fixture also checks Delete admission and state refresh, with at least 159 critical run/pass events.
 - Require the Nutanix mapping, unknown-plan, wire, capacity and mutation-boundary controls by exact name in fork CI, with at least 158 critical run/pass events.
 - Require the MachineConfig refresh identity parent and all three refusal/absence controls by exact name in fork CI, with at least 136 critical run/pass events.
