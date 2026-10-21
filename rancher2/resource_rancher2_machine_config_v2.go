@@ -72,7 +72,7 @@ func resourceRancher2MachineConfigV2Create(ctx context.Context, d *schema.Resour
 	if newObj.ID == "" {
 		return fmt.Errorf("created machine config response has no ID; reconcile the server before retrying")
 	}
-	if err := d.Set("kind", obj.TypeMeta.Kind); err != nil {
+	if err := d.Set("kind", obj.Kind); err != nil {
 		return err
 	}
 	if err := checkNutanixMachineHardwareEcho(obj.NutanixConfig, newObj.NutanixConfig); err != nil {
@@ -191,7 +191,7 @@ func resourceRancher2MachineConfigV2Update(ctx context.Context, d *schema.Resour
 	if err := checkNutanixMachineHardwareEcho(obj.NutanixConfig, newObj.NutanixConfig); err != nil {
 		return err
 	}
-	current, err := machineConfigV2ByID(obj.TypeMeta.Kind, func(apiType string, out any) error {
+	current, err := machineConfigV2ByID(obj.Kind, func(apiType string, out any) error {
 		return machineConfigLookupContext(ctx, client, timeout, id, apiType, out)
 	})
 	if err != nil {
