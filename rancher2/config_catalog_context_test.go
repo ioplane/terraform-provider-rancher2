@@ -2,6 +2,7 @@ package rancher2
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -301,6 +302,105 @@ func TestMachineConfigContextDelete(t *testing.T) {
 				if name == "mutation_canceled" || name == "mutation_404" {
 					require.Zero(t, polls.Load())
 				}
+			}
+		})
+	}
+}
+
+func TestMachineConfigContextUpdate(t *testing.T) {
+	const id = "fleet-default/nc-context"
+	resourcePath := "/k8s/clusters/local/v1/" + machineConfigV2NutanixAPIType + "/" + id
+	for _, name := range []string{"pre_cancel", "mutation_canceled", "empty_identity", "different_identity", "refresh_canceled", "refresh_404", "snapshot_invalidation"} {
+		t.Run(name, func(t *testing.T) {
+			block := newSettingContextBlock()
+			var mutated atomic.Bool
+			var c *Config
+			var f *settingContextFixture
+			f = newSettingContextFixture(t, true, func(w http.ResponseWriter, r *http.Request) bool {
+				if r.URL.Path != resourcePath {
+					return false
+				}
+				if r.Header.Get("Authorization") != "Bearer old-token" {
+					t.Errorf("resource request changed credential snapshot")
+				}
+				if r.Method == http.MethodPut {
+					mutated.Store(true)
+					switch name {
+					case "mutation_canceled":
+						block.serve(w, r, true, http.StatusOK)
+						return true
+					case "empty_identity", "different_identity":
+						out := *testMachineConfigV2NutanixConf
+						out.ID = ""
+						if name == "different_identity" {
+							out.ID = "fleet-default/another"
+						}
+						if err := json.NewEncoder(w).Encode(&out); err != nil {
+							t.Errorf("update response: %v", err)
+						}
+						return true
+					}
+				}
+				if r.Method == http.MethodGet && mutated.Load() {
+					switch name {
+					case "refresh_canceled":
+						block.serve(w, r, true, http.StatusOK)
+						return true
+					case "refresh_404":
+						http.Error(w, "resource absent after update", http.StatusNotFound)
+						return true
+					}
+				}
+				if name == "snapshot_invalidation" && !mutated.Load() {
+					f.reply(t, w, r)
+					if err := c.UpdateToken("new-token"); err != nil {
+						t.Errorf("invalidate snapshot: %v", err)
+					}
+					return true
+				}
+				return false
+			})
+			c = f.config()
+			c.Timeout = 5 * time.Second
+			d := schema.TestResourceDataRaw(t, machineConfigV2Fields(), map[string]any{
+				"generate_name": "context", "nutanix_config": []any{map[string]any{"cluster": "previous", "vm_image": "previous", "vm_network": []any{"previous"}}},
+			})
+			require.NoError(t, d.Set("kind", machineConfigV2NutanixKind))
+			d.SetId(id)
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer cancel()
+			updateCtx, stopUpdate := context.WithCancel(ctx)
+			if name == "pre_cancel" {
+				stopUpdate()
+			}
+			var wg sync.WaitGroup
+			defer func() { stopUpdate(); block.unblock(); wg.Wait() }()
+			result := make(chan diag.Diagnostics, 1)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				result <- resourceRancher2MachineConfigV2().UpdateContext(updateCtx, d, c)
+			}()
+			if name == "mutation_canceled" || name == "refresh_canceled" {
+				settingContextAwait(ctx, t, block.entered)
+				stopUpdate()
+			}
+			diagnostics := <-result
+			gets, mutations := f.counts()
+			require.Equal(t, id, d.Id())
+			if name == "pre_cancel" {
+				require.Zero(t, gets)
+				require.Zero(t, mutations)
+			} else {
+				require.Equal(t, 1, mutations, "an uncertain update must not be replayed")
+			}
+			if name == "snapshot_invalidation" {
+				require.False(t, diagnostics.HasError(), "%v", diagnostics)
+				require.Nil(t, c.contextReady["local"])
+				require.Equal(t, testMachineConfigV2NutanixConf.Cluster, d.Get("nutanix_config.0.cluster"))
+			} else {
+				require.True(t, diagnostics.HasError())
+				require.Equal(t, "previous", d.Get("nutanix_config.0.cluster"))
 			}
 		})
 	}

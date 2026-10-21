@@ -19,7 +19,9 @@ func resourceRancher2MachineConfigV2() *schema.Resource {
 		ReadWithoutTimeout: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
 			return diag.FromErr(readMachineConfigV2Context(ctx, d, meta))
 		},
-		Update: resourceRancher2MachineConfigV2Update,
+		UpdateContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2MachineConfigV2Update(ctx, d, meta))
+		},
 		DeleteContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
 			return diag.FromErr(resourceRancher2MachineConfigV2Delete(ctx, d, meta))
 		},
@@ -117,34 +119,52 @@ func readMachineConfigV2Context(ctx context.Context, d *schema.ResourceData, met
 	return flattenMachineConfigV2(d, obj)
 }
 
-func resourceRancher2MachineConfigV2Update(d *schema.ResourceData, meta interface{}) error {
+func resourceRancher2MachineConfigV2Update(ctx context.Context, d *schema.ResourceData, meta any) error {
 	obj := expandMachineConfigV2(d)
 	log.Printf("[INFO] Updating Machine Config V2 %s", d.Id())
 
-	newObj, err := updateMachineConfigV2(meta.(*Config), obj)
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid machine config configuration type %T", meta)
+	}
+	id := d.Id()
+	if id == "" {
+		return fmt.Errorf("machine config update requires an ID")
+	}
+	client, err := config.catalogClientContext(ctx, rancher2DefaultLocalClusterID)
 	if err != nil {
 		return err
 	}
-	d.SetId(newObj.ID)
+	defer config.closeStaleContextClient(rancher2DefaultLocalClusterID, client)
+	config.contextMu.Lock()
+	timeout := config.Timeout
+	config.contextMu.Unlock()
+	newObj, err := updateMachineConfigV2(ctx, client, timeout, obj)
+	if err != nil {
+		return err
+	}
+	if newObj.ID != id {
+		return fmt.Errorf("updated machine config identity %q does not match %q", newObj.ID, id)
+	}
 	if err := checkNutanixMachineHardwareEcho(obj.NutanixConfig, newObj.NutanixConfig); err != nil {
 		return err
 	}
-	if err := flattenMachineConfigV2(d, newObj); err != nil {
+	current, err := machineConfigV2ByID(obj.TypeMeta.Kind, func(apiType string, out any) error {
+		return machineConfigLookupContext(ctx, client, timeout, id, apiType, out)
+	})
+	if err != nil {
 		return err
 	}
-	stateConf := &retry.StateChangeConf{
-		Pending:    []string{},
-		Target:     []string{"active"},
-		Refresh:    machineConfigV2StateRefreshFunc(meta, newObj.ID, newObj.TypeMeta.Kind),
-		Timeout:    d.Timeout(schema.TimeoutCreate),
-		Delay:      1 * time.Second,
-		MinTimeout: 3 * time.Second,
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("refresh updated machine config %q: %w", id, err)
 	}
-	_, waitErr := stateConf.WaitForState()
-	if waitErr != nil {
-		return fmt.Errorf("[ERROR] waiting for machine config (%s) to be active: %s", newObj.ID, waitErr)
+	if current.ID != id {
+		return fmt.Errorf("refreshed machine config identity %q does not match %q", current.ID, id)
 	}
-	return resourceRancher2MachineConfigV2Read(d, meta)
+	if err := checkNutanixMachineHardwareEcho(obj.NutanixConfig, current.NutanixConfig); err != nil {
+		return err
+	}
+	return flattenMachineConfigV2(d, current)
 }
 
 func resourceRancher2MachineConfigV2Delete(ctx context.Context, d *schema.ResourceData, meta any) error {
@@ -441,8 +461,8 @@ func machineConfigV2ByID(kind string, lookup func(string, any) error) (*MachineC
 	return out, nil
 }
 
-func updateMachineConfigV2(c *Config, obj *MachineConfigV2) (*MachineConfigV2, error) {
-	if c == nil {
+func updateMachineConfigV2(ctx context.Context, client *clientbase.APIBaseClient, timeout time.Duration, obj *MachineConfigV2) (*MachineConfigV2, error) {
+	if client == nil {
 		return nil, fmt.Errorf("Updating Machine Config V2: Provider config is nil")
 	}
 	if obj == nil {
@@ -451,59 +471,69 @@ func updateMachineConfigV2(c *Config, obj *MachineConfigV2) (*MachineConfigV2, e
 	var err error
 	out := &MachineConfigV2{}
 	kind := obj.TypeMeta.Kind
+	update := func(id, apiType string, payload, response any) error {
+		resource := &norman.Resource{}
+		if err := machineConfigLookupContext(ctx, client, timeout, id, apiType, resource); err != nil {
+			return err
+		}
+		if resource.ID != id {
+			return fmt.Errorf("machine config lookup identity %q does not match %q", resource.ID, id)
+		}
+		return client.Ops.DoUpdateContext(ctx, apiType, resource, payload, response)
+	}
 	switch kind {
 	case machineConfigV2Amazonec2Kind:
 		resp := &MachineConfigV2Amazonec2{}
-		err = c.updateObjectV2(rancher2DefaultLocalClusterID, obj.ID, machineConfigV2Amazonec2APIType, obj.Amazonec2Config, resp)
+		err = update(obj.ID, machineConfigV2Amazonec2APIType, obj.Amazonec2Config, resp)
 		out.Amazonec2Config = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2AzureKind:
 		resp := &MachineConfigV2Azure{}
-		err = c.updateObjectV2(rancher2DefaultLocalClusterID, obj.ID, machineConfigV2AzureAPIType, obj.AzureConfig, resp)
+		err = update(obj.ID, machineConfigV2AzureAPIType, obj.AzureConfig, resp)
 		out.AzureConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2DigitaloceanKind:
 		resp := &MachineConfigV2Digitalocean{}
-		err = c.updateObjectV2(rancher2DefaultLocalClusterID, obj.ID, machineConfigV2DigitaloceanAPIType, obj.DigitaloceanConfig, resp)
+		err = update(obj.ID, machineConfigV2DigitaloceanAPIType, obj.DigitaloceanConfig, resp)
 		out.DigitaloceanConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2HarvesterKind:
 		resp := &MachineConfigV2Harvester{}
-		err = c.updateObjectV2(rancher2DefaultLocalClusterID, obj.ID, machineConfigV2HarvesterAPIType, obj.HarvesterConfig, resp)
+		err = update(obj.ID, machineConfigV2HarvesterAPIType, obj.HarvesterConfig, resp)
 		out.HarvesterConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2LinodeKind:
 		resp := &MachineConfigV2Linode{}
-		err = c.updateObjectV2(rancher2DefaultLocalClusterID, obj.ID, machineConfigV2LinodeAPIType, obj.LinodeConfig, resp)
+		err = update(obj.ID, machineConfigV2LinodeAPIType, obj.LinodeConfig, resp)
 		out.LinodeConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2OpenstackKind:
 		resp := &MachineConfigV2Openstack{}
-		err = c.updateObjectV2(rancher2DefaultLocalClusterID, obj.ID, machineConfigV2OpenstackAPIType, obj.OpenstackConfig, resp)
+		err = update(obj.ID, machineConfigV2OpenstackAPIType, obj.OpenstackConfig, resp)
 		out.OpenstackConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2VmwarevsphereKind:
 		resp := &MachineConfigV2Vmwarevsphere{}
-		err = c.updateObjectV2(rancher2DefaultLocalClusterID, obj.ID, machineConfigV2VmwarevsphereAPIType, obj.VmwarevsphereConfig, resp)
+		err = update(obj.ID, machineConfigV2VmwarevsphereAPIType, obj.VmwarevsphereConfig, resp)
 		out.VmwarevsphereConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2GoogleGCEKind:
 		resp := &MachineConfigV2GoogleGCE{}
-		err = c.updateObjectV2(rancher2DefaultLocalClusterID, obj.ID, machineConfigV2GoogleGCEAPIType, obj.GoogleGCEConfig, resp)
+		err = update(obj.ID, machineConfigV2GoogleGCEAPIType, obj.GoogleGCEConfig, resp)
 		out.GoogleGCEConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
@@ -513,14 +543,10 @@ func updateMachineConfigV2(c *Config, obj *MachineConfigV2) (*MachineConfigV2, e
 		if err := validateNutanixMachineHardware(obj.NutanixConfig); err != nil {
 			return nil, err
 		}
-		client, clientErr := c.CatalogV2Client(rancher2DefaultLocalClusterID)
-		if clientErr != nil {
-			return nil, clientErr
-		}
 		if err := requireNutanixMachineHardware(obj.NutanixConfig, client.Types[machineConfigV2NutanixAPIType], true); err != nil {
 			return nil, err
 		}
-		err = c.updateObjectV2(rancher2DefaultLocalClusterID, obj.ID, machineConfigV2NutanixAPIType, obj.NutanixConfig, resp)
+		err = update(obj.ID, machineConfigV2NutanixAPIType, obj.NutanixConfig, resp)
 		out.NutanixConfig = resp
 		out.ID = resp.ID
 		out.TypeMeta = resp.TypeMeta
@@ -529,7 +555,7 @@ func updateMachineConfigV2(c *Config, obj *MachineConfigV2) (*MachineConfigV2, e
 		return nil, fmt.Errorf("[ERROR] Unsupported driver on node template: %s", kind)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("Updating Machine Config V2: %s", err)
+		return nil, fmt.Errorf("update machine config V2: %w", err)
 	}
 	return out, err
 }

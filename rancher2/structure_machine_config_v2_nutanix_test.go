@@ -210,12 +210,12 @@ func TestNutanixMachineHardwareBoundary(t *testing.T) {
 				err = resourceRancher2MachineConfigV2Read(d, config)
 			case tc.prune || tc.missing:
 				if tc.update {
-					err = resourceRancher2MachineConfigV2Update(d, config)
+					err = resourceRancher2MachineConfigV2Update(t.Context(), d, config)
 				} else {
 					err = resourceRancher2MachineConfigV2Create(d, config)
 				}
 			case tc.update:
-				_, err = updateMachineConfigV2(config, obj)
+				_, err = updateMachineConfigV2(t.Context(), client, config.Timeout, obj)
 			default:
 				_, err = createMachineConfigV2(config, obj)
 			}
