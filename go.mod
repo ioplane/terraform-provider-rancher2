@@ -2,6 +2,8 @@ module github.com/rancher/terraform-provider-rancher2
 
 go 1.26.4
 
+toolchain go1.27.3
+
 require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-viper/mapstructure/v2 v2.5.0

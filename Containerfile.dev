@@ -1,16 +1,16 @@
-FROM docker.io/library/golang:1.27.2-trixie@sha256:47667934874913a449b96faa7ef4777fa285d9ec29126ee80ed61c45b7cccf0e
+FROM docker.io/library/golang:1.27.3-trixie@sha256:1896654cfc5c2b5ad74c07f29cb36f5d2d1cbed42e3054070fbfe444e521e83c
 
-ARG SOURCE_REVISION=2710c8c52d1635d69f35e6c153ca987885d27b73
-ARG BUILD_CREATED=2026-10-20T00:00:00Z
+ARG SOURCE_REVISION=84cac48c6c3c25da825564a026bb20f27997b365
+ARG BUILD_CREATED=2026-10-21T00:00:00Z
 LABEL org.opencontainers.image.title="Rancher2 provider Go development environment" \
       org.opencontainers.image.description="Pinned Go environment for Terraform Rancher2 provider development" \
       org.opencontainers.image.source="https://github.com/ioplane/terraform-provider-rancher2" \
       org.opencontainers.image.licenses="MPL-2.0" \
-      org.opencontainers.image.version="go1.27.2" \
+      org.opencontainers.image.version="go1.27.3" \
       org.opencontainers.image.revision="${SOURCE_REVISION}" \
       org.opencontainers.image.created="${BUILD_CREATED}" \
-      org.opencontainers.image.base.name="docker.io/library/golang:1.27.2-trixie" \
-      org.opencontainers.image.base.digest="sha256:47667934874913a449b96faa7ef4777fa285d9ec29126ee80ed61c45b7cccf0e"
+      org.opencontainers.image.base.name="docker.io/library/golang:1.27.3-trixie" \
+      org.opencontainers.image.base.digest="sha256:1896654cfc5c2b5ad74c07f29cb36f5d2d1cbed42e3054070fbfe444e521e83c"
 
 ENV GOFLAGS="-mod=readonly -buildvcs=false" \
     GOTOOLCHAIN=local \
