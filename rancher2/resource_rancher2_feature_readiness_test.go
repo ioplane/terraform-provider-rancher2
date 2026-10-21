@@ -16,6 +16,7 @@ func TestFeatureUpdateRecoversAfterReadinessFailures(t *testing.T) {
 		name         string
 		failures     int
 		updateStatus int
+		readStatus   int
 		wantError    bool
 	}{
 		{name: "ready_success"},
@@ -23,6 +24,8 @@ func TestFeatureUpdateRecoversAfterReadinessFailures(t *testing.T) {
 		{name: "update_502_recovers", updateStatus: http.StatusBadGateway},
 		{name: "update_503_recovers", updateStatus: http.StatusServiceUnavailable},
 		{name: "update_403_fails", updateStatus: http.StatusForbidden, wantError: true},
+		{name: "read_403_preserves_identity", readStatus: http.StatusForbidden},
+		{name: "read_404_confirms_absence", readStatus: http.StatusNotFound},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			const featureID = "synthetic-feature"
@@ -58,6 +61,11 @@ func TestFeatureUpdateRecoversAfterReadinessFailures(t *testing.T) {
 				case r.Method == http.MethodGet && r.URL.Path == "/v3/settings/k8s-version":
 					response = map[string]string{"id": "k8s-version", "value": ""}
 				case r.Method == http.MethodGet && r.URL.Path == "/v3/features/"+featureID:
+					if tc.readStatus != 0 {
+						initialReads++
+						http.Error(w, "synthetic lookup failure", tc.readStatus)
+						return
+					}
 					labels := map[string]string{"fixture": "initial"}
 					if updates == 0 {
 						initialReads++
@@ -109,6 +117,30 @@ func TestFeatureUpdateRecoversAfterReadinessFailures(t *testing.T) {
 			})
 			d.SetId(featureID)
 			config := &Config{URL: srv.URL, TokenKey: "synthetic-token", Timeout: 100 * time.Millisecond, K8SDefaultVersion: rancher2ClusterRKEK8SDefaultVersion}
+			if tc.readStatus != 0 {
+				err := resourceRancher2FeatureRead(d, config)
+				if tc.readStatus == http.StatusForbidden {
+					if err == nil || d.Id() != featureID || d.State() == nil || d.State().ID != featureID {
+						t.Fatalf("refused feature Read must preserve identity: error=%v ID=%q", err, d.Id())
+					}
+				} else if err != nil || d.Id() != "" {
+					t.Fatalf("missing feature Read must confirm absence: error=%v ID=%q", err, d.Id())
+				}
+				_, state, refreshErr := featureStateRefreshFunc(config, featureID)()
+				if tc.readStatus == http.StatusForbidden {
+					if refreshErr == nil || state != "" {
+						t.Fatalf("refused feature refresh must not confirm removal: error=%v state=%q", refreshErr, state)
+					}
+				} else if refreshErr != nil || state != "removed" {
+					t.Fatalf("missing feature refresh: error=%v state=%q", refreshErr, state)
+				}
+				mu.Lock()
+				defer mu.Unlock()
+				if updates != 0 || initialReads != 2 {
+					t.Errorf("unexpected feature requests: mutations=%d reads=%d", updates, initialReads)
+				}
+				return
+			}
 			started := time.Now()
 			err := resourceRancher2FeatureUpdate(d, config)
 			mu.Lock()

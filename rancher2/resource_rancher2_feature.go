@@ -37,12 +37,12 @@ func resourceRancher2FeatureRead(d *schema.ResourceData, meta interface{}) error
 
 	feature, err := client.Feature.ByID(name)
 	if err != nil {
-		if IsNotFound(err) || IsForbidden(err) {
+		if IsNotFound(err) {
 			log.Printf("[INFO] Feature ID %s not found.", d.Id())
 			d.SetId("")
 			return nil
 		}
-		return fmt.Errorf("[ERROR] refreshing feature %s: %v", d.Id(), err)
+		return fmt.Errorf("refresh feature %s: %w", d.Id(), err)
 	}
 
 	err = flattenFeature(d, feature)
@@ -117,7 +117,7 @@ func featureStateRefreshFunc(meta interface{}, featureID string) retry.StateRefr
 		}
 		obj, err := client.Feature.ByID(featureID)
 		if err != nil {
-			if IsNotFound(err) || IsForbidden(err) {
+			if IsNotFound(err) {
 				return obj, "removed", nil
 			}
 			return nil, "", err
