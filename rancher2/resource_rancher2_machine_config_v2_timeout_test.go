@@ -52,6 +52,7 @@ func TestMachineConfigV2ReadIdentity(t *testing.T) {
 			}
 			client := &clientbase.APIBaseClient{Ops: ops, Types: ops.Types, Opts: ops.Opts}
 			config := &Config{Timeout: time.Second, Client: Client{CatalogV2: map[string]*clientbase.APIBaseClient{"local": client}}}
+			config.contextReady = map[string]*contextClientState{"local": {client: client}}
 			d := schema.TestResourceDataRaw(t, map[string]*schema.Schema{
 				"kind": {Type: schema.TypeString, Required: true},
 				"name": {Type: schema.TypeString, Optional: true},

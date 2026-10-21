@@ -295,6 +295,18 @@ func (f *settingContextFixture) reply(t *testing.T, w http.ResponseWriter, r *ht
 		response = map[string]string{"id": "k8s-version", "value": "v1.35.0"}
 	case "/v3/settings/pilot":
 		response = map[string]string{"id": "pilot", "name": "pilot", "value": "stable"}
+	case "/k8s/clusters/local/v1", "/k8s/clusters/other/v1":
+		endpoint := base + r.URL.Path
+		w.Header().Set("X-API-Schemas", endpoint)
+		response = map[string]any{"data": []any{map[string]any{
+			"id": machineConfigV2NutanixAPIType, "resourceMethods": []string{http.MethodGet},
+			"links": map[string]string{"collection": endpoint + "/" + machineConfigV2NutanixAPIType},
+		}}}
+	case "/k8s/clusters/local/v1/" + machineConfigV2NutanixAPIType + "/fleet-default/nc-context":
+		out := *testMachineConfigV2NutanixConf
+		out.ID = "fleet-default/nc-context"
+		out.Kind = machineConfigV2NutanixKind
+		response = &out
 	default:
 		http.Error(w, "unexpected request", 404)
 		return
@@ -362,7 +374,7 @@ func TestSettingContextSDKPreCanceled(t *testing.T) {
 		if !settingContextRPCError(resp) || resp.State != nil || after != before || mutations != 0 {
 			t.Fatalf("pre-cancel warm=%v error=%v state_nil=%v GET_delta=%d mutations=%d", warm, settingContextRPCError(resp), resp.State == nil, after-before, mutations)
 		}
-		if !warm && c.settingReady != nil {
+		if !warm && c.contextReady[""] != nil {
 			t.Fatal("pre-cancel published partial cache")
 		}
 	}
@@ -599,7 +611,7 @@ func TestSettingContextOwnerWaiters(t *testing.T) {
 			if _, err := c.settingByIDContext(ctx, "pilot"); err != nil {
 				t.Fatal(err)
 			}
-			if c.settingReady == nil {
+			if c.contextReady[""] == nil {
 				t.Fatal("survivor did not publish reusable client")
 			}
 			_, mutations := f.counts()
@@ -643,10 +655,10 @@ func TestSettingContextGeneration(t *testing.T) {
 			wg.Add(1)
 			go func() { defer wg.Done(); _, err := c.settingByIDContext(oldCtx, "pilot"); old <- err }()
 			settingContextAwait(ctx, t, oldBlock.entered)
-			c.settingMu.Lock()
-			changed := c.settingChanged
-			generation := c.settingGeneration
-			c.settingMu.Unlock()
+			c.contextMu.Lock()
+			changed := c.contextChanged
+			generation := c.contextGeneration
+			c.contextMu.Unlock()
 			c.Sync.Lock()
 			locked := true
 			defer func() {
@@ -659,10 +671,10 @@ func TestSettingContextGeneration(t *testing.T) {
 			go func() { defer wg.Done(); update <- c.UpdateToken("new-token") }()
 			settingContextAwait(ctx, t, changed)
 			for {
-				c.settingMu.Lock()
-				ready := c.settingGeneration >= generation+2
-				next := c.settingChanged
-				c.settingMu.Unlock()
+				c.contextMu.Lock()
+				ready := c.contextGeneration >= generation+2
+				next := c.contextChanged
+				c.contextMu.Unlock()
 				if ready {
 					break
 				}
@@ -672,9 +684,9 @@ func TestSettingContextGeneration(t *testing.T) {
 			wg.Add(1)
 			go func() { defer wg.Done(); _, err := c.settingByIDContext(ctx, "pilot"); fresh <- err }()
 			settingContextAwait(ctx, t, newBlock.entered)
-			c.settingMu.Lock()
-			flight := c.settingFlight
-			c.settingMu.Unlock()
+			c.contextMu.Lock()
+			flight := c.contextFlight[""]
+			c.contextMu.Unlock()
 			if cancelOld {
 				cancelOldCtx()
 			}
@@ -682,9 +694,9 @@ func TestSettingContextGeneration(t *testing.T) {
 			if err := <-old; err == nil || (cancelOld && !errors.Is(err, context.Canceled)) {
 				t.Fatal("old generation succeeded")
 			}
-			c.settingMu.Lock()
-			same := c.settingFlight == flight
-			c.settingMu.Unlock()
+			c.contextMu.Lock()
+			same := c.contextFlight[""] == flight
+			c.contextMu.Unlock()
 			if !same {
 				t.Fatal("old owner cleared new flight")
 			}
@@ -755,7 +767,7 @@ func TestSettingContextFailures(t *testing.T) {
 			if !settingContextRPCError(resp) || resp.State != nil {
 				t.Fatalf("error RPC state: %v", resp)
 			}
-			if tc.path != "/v3/settings/pilot" && c.settingReady != nil {
+			if tc.path != "/v3/settings/pilot" && c.contextReady[""] != nil {
 				t.Fatal("partial initialization cached")
 			}
 			mu.Lock()
@@ -799,7 +811,7 @@ func TestSettingContextErrorBodyCauses(t *testing.T) {
 			if !errors.Is(err, context.DeadlineExceeded) || !errors.As(err, &apiErr) || apiErr.StatusCode != status || apiErr.Body != "Unreadable body." {
 				t.Fatalf("lost status/context/body cause: %v", err)
 			}
-			if c.settingReady != nil {
+			if c.contextReady[""] != nil {
 				t.Fatal("failed default cached")
 			}
 		})
@@ -991,7 +1003,7 @@ func TestSettingContextDefaultRetry(t *testing.T) {
 				if !errors.Is(err, context.DeadlineExceeded) || !errors.As(err, &apiErr) || apiErr.StatusCode != tc.status || n != 1 {
 					t.Fatalf("first-probe err=%v attempts=%d", err, n)
 				}
-				if c.settingReady != nil {
+				if c.contextReady[""] != nil {
 					t.Fatal("failed default cached")
 				}
 			}

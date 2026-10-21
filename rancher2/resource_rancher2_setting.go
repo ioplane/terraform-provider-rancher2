@@ -57,7 +57,7 @@ func resourceRancher2SettingCreate(ctx context.Context, d *schema.ResourceData, 
 		d.SetId(exist.ID)
 		return resourceRancher2SettingUpdate(ctx, d, meta)
 	}
-	if !settingLookupNotFound(ctx, err) {
+	if !resourceLookupNotFound(ctx, err) {
 		return err
 	}
 
@@ -107,7 +107,7 @@ func resourceRancher2SettingRead(ctx context.Context, d *schema.ResourceData, me
 		if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return err
 		}
-		if settingLookupNotFound(ctx, err) {
+		if resourceLookupNotFound(ctx, err) {
 			log.Printf("[INFO] Setting ID %s not found.", d.Id())
 			d.SetId("")
 			return nil
@@ -183,7 +183,7 @@ func resourceRancher2SettingDelete(ctx context.Context, d *schema.ResourceData, 
 
 	setting, err := config.settingByIDContext(ctx, id)
 	if err != nil {
-		if settingLookupNotFound(ctx, err) {
+		if resourceLookupNotFound(ctx, err) {
 			log.Printf("[INFO] Setting ID %s not found.", id)
 			d.SetId("")
 			return nil
@@ -238,7 +238,7 @@ func settingStateRefreshFunc(ctx context.Context, config *Config, settingID stri
 	return func() (interface{}, string, error) {
 		obj, err := config.settingByIDContext(ctx, settingID)
 		if err != nil {
-			if settingLookupNotFound(ctx, err) {
+			if resourceLookupNotFound(ctx, err) {
 				return obj, "removed", nil
 			}
 			return nil, "", err
@@ -247,11 +247,11 @@ func settingStateRefreshFunc(ctx context.Context, config *Config, settingID stri
 	}
 }
 
-func settingLookupNotFound(ctx context.Context, err error) bool {
+func resourceLookupNotFound(ctx context.Context, err error) bool {
 	if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return false
 	}
-	var lookup *settingLookupError
+	var lookup *resourceLookupError
 	var apiError *clientbase.APIError
 	return errors.As(err, &lookup) && errors.As(lookup, &apiError) && apiError.StatusCode == http.StatusNotFound
 }

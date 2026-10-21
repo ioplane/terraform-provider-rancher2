@@ -11,107 +11,130 @@ import (
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
 
-type settingInit struct {
+type contextInit struct {
 	generation uint64
 	done       chan struct{}
 }
 
-type settingClientState struct {
+type contextClientState struct {
 	client            *clientbase.APIBaseClient
 	k8sDefaultVersion string
 }
 
-// settingLookupError distinguishes a resource response from initialization failures.
-type settingLookupError struct {
+// resourceLookupError distinguishes a resource response from initialization failures.
+type resourceLookupError struct {
 	cause error
 }
 
-func (e *settingLookupError) Error() string { return e.cause.Error() }
-func (e *settingLookupError) Unwrap() error { return e.cause }
+func (e *resourceLookupError) Error() string { return e.cause.Error() }
+func (e *resourceLookupError) Unwrap() error { return e.cause }
 
-// invalidateSettingLocked changes metadata only; the caller closes the old pool after unlocking.
-func (c *Config) invalidateSettingLocked() *clientbase.APIBaseClient {
-	c.settingGeneration++
-	var old *clientbase.APIBaseClient
-	if c.settingReady != nil {
-		old = c.settingReady.client
+// invalidateContextClientsLocked changes metadata only; detached pools close after unlocking.
+func (c *Config) invalidateContextClientsLocked() []*clientbase.APIBaseClient {
+	c.contextGeneration++
+	old := make([]*clientbase.APIBaseClient, 0, len(c.contextReady))
+	for _, ready := range c.contextReady {
+		old = append(old, ready.client)
 	}
-	c.settingReady = nil
-	c.settingFlight = nil
-	if c.settingChanged != nil {
-		close(c.settingChanged)
+	c.contextReady = nil
+	c.contextFlight = nil
+	if c.contextChanged != nil {
+		close(c.contextChanged)
 	}
-	c.settingChanged = make(chan struct{})
+	c.contextChanged = make(chan struct{})
 	return old
 }
 
-func closeSettingIdle(cli *clientbase.APIBaseClient) {
-	if cli != nil {
-		cli.Ops.Client.CloseIdleConnections()
+func closeContextIdle(clients ...*clientbase.APIBaseClient) {
+	for _, cli := range clients {
+		if cli != nil && cli.Ops != nil && cli.Ops.Client != nil {
+			cli.Ops.Client.CloseIdleConnections()
+		}
 	}
 }
 
 func (c *Config) settingClientContext(ctx context.Context) (*clientbase.APIBaseClient, error) {
+	return c.apiClientContext(ctx, "")
+}
+
+func (c *Config) apiClientContext(ctx context.Context, key string) (*clientbase.APIBaseClient, error) {
+	label := "setting"
+	if key != "" {
+		label = "catalog"
+	}
 	for {
 		if err := ctx.Err(); err != nil {
-			return nil, fmt.Errorf("acquire setting client: %w", err)
+			return nil, fmt.Errorf("acquire %s client: %w", label, err)
 		}
-		c.settingMu.Lock()
+		c.contextMu.Lock()
 		if err := ctx.Err(); err != nil {
-			c.settingMu.Unlock()
-			return nil, fmt.Errorf("acquire setting client: %w", err)
+			c.contextMu.Unlock()
+			return nil, fmt.Errorf("acquire %s client: %w", label, err)
 		}
-		if c.settingReady != nil {
-			cli := c.settingReady.client
-			c.settingMu.Unlock()
+		if c.contextReady[key] != nil {
+			cli := c.contextReady[key].client
+			c.contextMu.Unlock()
 			return cli, nil
 		}
-		if c.settingChanged == nil {
-			c.settingChanged = make(chan struct{})
+		if c.contextChanged == nil {
+			c.contextChanged = make(chan struct{})
 		}
-		if c.settingFlight != nil {
-			done, changed := c.settingFlight.done, c.settingChanged
-			c.settingMu.Unlock()
+		if c.contextFlight[key] != nil {
+			done, changed := c.contextFlight[key].done, c.contextChanged
+			c.contextMu.Unlock()
 			select {
 			case <-ctx.Done():
-				return nil, fmt.Errorf("wait for setting client: %w", ctx.Err())
+				return nil, fmt.Errorf("wait for %s client: %w", label, ctx.Err())
 			case <-done:
 			case <-changed:
 			}
 			continue
 		}
-		flight := &settingInit{generation: c.settingGeneration, done: make(chan struct{})}
-		c.settingFlight = flight
+		flight := &contextInit{generation: c.contextGeneration, done: make(chan struct{})}
+		if c.contextFlight == nil {
+			c.contextFlight = make(map[string]*contextInit)
+		}
+		c.contextFlight[key] = flight
 		opts := &clientbase.ClientOpts{URL: c.URL, TokenKey: c.TokenKey, CACerts: c.CACerts, Insecure: c.Insecure, Timeout: c.Timeout}
 		seed := c.K8SDefaultVersion
-		c.settingMu.Unlock()
-		cli, version, err := initSettingClient(ctx, opts, seed)
-		c.settingMu.Lock()
-		current := c.settingGeneration == flight.generation && c.settingFlight == flight
+		c.contextMu.Unlock()
+		var cli *clientbase.APIBaseClient
+		var version string
+		var err error
+		if key == "" {
+			cli, version, err = initSettingClient(ctx, opts, seed)
+		} else {
+			cli, err = initCatalogClientContext(ctx, opts, key)
+		}
+		c.contextMu.Lock()
+		current := c.contextGeneration == flight.generation && c.contextFlight[key] == flight
 		if current {
-			c.settingFlight = nil
+			delete(c.contextFlight, key)
 			if err == nil {
 				err = ctx.Err()
 			}
 			if err == nil {
-				c.settingReady = &settingClientState{client: cli, k8sDefaultVersion: version}
+				if c.contextReady == nil {
+					c.contextReady = make(map[string]*contextClientState)
+				}
+				c.contextReady[key] = &contextClientState{client: cli, k8sDefaultVersion: version}
 			}
 		}
 		close(flight.done)
-		c.settingMu.Unlock()
+		c.contextMu.Unlock()
 		if !current {
-			closeSettingIdle(cli)
+			closeContextIdle(cli)
 			if err == nil {
 				err = ctx.Err()
 			}
 			if err != nil {
-				return nil, fmt.Errorf("setting client invalidated during initialization: %w", err)
+				return nil, fmt.Errorf("%s client invalidated during initialization: %w", label, err)
 			}
-			return nil, fmt.Errorf("setting client invalidated during initialization")
+			return nil, fmt.Errorf("%s client invalidated during initialization", label)
 		}
 		if err != nil {
-			closeSettingIdle(cli)
-			return nil, fmt.Errorf("initialize setting client: %w", err)
+			closeContextIdle(cli)
+			return nil, fmt.Errorf("initialize %s client: %w", label, err)
 		}
 		return cli, nil
 	}
@@ -125,22 +148,26 @@ func (c *Config) settingByIDContext(ctx context.Context, name string) (*manageme
 	defer c.closeStaleSettingClient(cli)
 	setting := &managementClient.Setting{}
 	if err := cli.Ops.DoByIDContext(ctx, managementClient.SettingType, name, setting); err != nil {
-		return nil, fmt.Errorf("read setting %q: %w", name, &settingLookupError{cause: err})
+		return nil, fmt.Errorf("read setting %q: %w", name, &resourceLookupError{cause: err})
 	}
 	return setting, nil
 }
 
 func (c *Config) closeStaleSettingClient(cli *clientbase.APIBaseClient) {
-	c.settingMu.Lock()
-	stale := c.settingReady == nil || c.settingReady.client != cli
-	c.settingMu.Unlock()
+	c.closeStaleContextClient("", cli)
+}
+
+func (c *Config) closeStaleContextClient(key string, cli *clientbase.APIBaseClient) {
+	c.contextMu.Lock()
+	stale := c.contextReady[key] == nil || c.contextReady[key].client != cli
+	c.contextMu.Unlock()
 	if stale {
-		closeSettingIdle(cli)
+		closeContextIdle(cli)
 	}
 }
 
 func initSettingClient(ctx context.Context, opts *clientbase.ClientOpts, seededDefault string) (*clientbase.APIBaseClient, string, error) {
-	if err := settingReadyContext(ctx, opts); err != nil {
+	if err := rancherReadyContext(ctx, opts); err != nil {
 		return nil, "", fmt.Errorf("setting readiness: %w", err)
 	}
 	timeout := opts.Timeout
@@ -151,13 +178,13 @@ func initSettingClient(ctx context.Context, opts *clientbase.ClientOpts, seededD
 	}
 	version, err := k8sDefaultVersionContext(ctx, &cli, timeout, seededDefault)
 	if err != nil {
-		closeSettingIdle(&cli)
+		closeContextIdle(&cli)
 		return nil, "", fmt.Errorf("setting default version: %w", err)
 	}
 	return &cli, version, nil
 }
 
-func settingReadyContext(ctx context.Context, opts *clientbase.ClientOpts) error {
+func rancherReadyContext(ctx context.Context, opts *clientbase.ClientOpts) error {
 	phase := ctx
 	cancel := func() {}
 	if opts.Timeout > 0 {
@@ -183,7 +210,7 @@ func settingReadyContext(ctx context.Context, opts *clientbase.ClientOpts) error
 		if opts.Timeout <= 0 {
 			return fmt.Errorf("rancher is not ready: %w (last error: %w)", context.DeadlineExceeded, err)
 		}
-		if waitErr := settingRetryContext(phase); waitErr != nil {
+		if waitErr := rancherRetryContext(phase); waitErr != nil {
 			return fmt.Errorf("rancher is not ready: %w (last error: %w)", waitErr, err)
 		}
 	}
@@ -223,13 +250,13 @@ func k8sDefaultVersionContext(ctx context.Context, cli *clientbase.APIBaseClient
 		if timeout <= 0 {
 			return "", fmt.Errorf("read default version: %w (last error: %w)", context.DeadlineExceeded, err)
 		}
-		if waitErr := settingRetryContext(phase); waitErr != nil {
+		if waitErr := rancherRetryContext(phase); waitErr != nil {
 			return "", fmt.Errorf("read default version: %w (last error: %w)", waitErr, err)
 		}
 	}
 }
 
-func settingRetryContext(ctx context.Context) error {
+func rancherRetryContext(ctx context.Context) error {
 	timer := time.NewTimer(rancher2RetriesWait * time.Second)
 	defer timer.Stop()
 	select {

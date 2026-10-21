@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	norman "github.com/rancher/norman/types"
@@ -14,7 +15,9 @@ import (
 func resourceRancher2MachineConfigV2() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceRancher2MachineConfigV2Create,
-		Read:   resourceRancher2MachineConfigV2Read,
+		ReadWithoutTimeout: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+			return diag.FromErr(readMachineConfigV2Context(ctx, d, meta))
+		},
 		Update: resourceRancher2MachineConfigV2Update,
 		Delete: resourceRancher2MachineConfigV2Delete,
 		Schema: machineConfigV2Fields(),
@@ -88,12 +91,20 @@ func waitForMachineConfigV2(d *schema.ResourceData, config *Config, interval tim
 }
 
 func resourceRancher2MachineConfigV2Read(d *schema.ResourceData, meta interface{}) error {
+	return readMachineConfigV2Context(context.Background(), d, meta)
+}
+
+func readMachineConfigV2Context(ctx context.Context, d *schema.ResourceData, meta any) error {
 	log.Printf("[INFO] Refreshing Machine Config V2 %s", d.Id())
 
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid machine config configuration type %T", meta)
+	}
 	kind := d.Get("kind").(string)
-	obj, err := getMachineConfigV2ByID(meta.(*Config), d.Id(), kind)
+	obj, err := getMachineConfigV2ByIDContext(ctx, config, d.Id(), kind)
 	if err != nil {
-		if IsNotFound(err) {
+		if resourceLookupNotFound(ctx, err) {
 			log.Printf("[INFO] Machine Config V2 %s not found", d.Id())
 			d.SetId("")
 			return nil
@@ -297,12 +308,18 @@ func getMachineConfigV2ByID(c *Config, id, kind string) (*MachineConfigV2, error
 	if len(id) == 0 {
 		return nil, fmt.Errorf("Getting Machine Config V2: Machine Config V2 ID is empty")
 	}
+	return machineConfigV2ByID(kind, func(apiType string, out any) error {
+		return c.getObjectV2ByID(rancher2DefaultLocalClusterID, id, apiType, out)
+	})
+}
+
+func machineConfigV2ByID(kind string, lookup func(string, any) error) (*MachineConfigV2, error) {
 	var err error
 	out := &MachineConfigV2{}
 	switch kind {
 	case machineConfigV2Amazonec2Kind:
 		resp := &MachineConfigV2Amazonec2{}
-		err = c.getObjectV2ByID(rancher2DefaultLocalClusterID, id, machineConfigV2Amazonec2APIType, resp)
+		err = lookup(machineConfigV2Amazonec2APIType, resp)
 		out.Amazonec2Config = resp
 		out.ID = resp.ID
 		out.Links = resp.Links
@@ -312,7 +329,7 @@ func getMachineConfigV2ByID(c *Config, id, kind string) (*MachineConfigV2, error
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2AzureKind:
 		resp := &MachineConfigV2Azure{}
-		err = c.getObjectV2ByID(rancher2DefaultLocalClusterID, id, machineConfigV2AzureAPIType, resp)
+		err = lookup(machineConfigV2AzureAPIType, resp)
 		out.AzureConfig = resp
 		out.ID = resp.ID
 		out.Links = resp.Links
@@ -322,7 +339,7 @@ func getMachineConfigV2ByID(c *Config, id, kind string) (*MachineConfigV2, error
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2DigitaloceanKind:
 		resp := &MachineConfigV2Digitalocean{}
-		err = c.getObjectV2ByID(rancher2DefaultLocalClusterID, id, machineConfigV2DigitaloceanAPIType, resp)
+		err = lookup(machineConfigV2DigitaloceanAPIType, resp)
 		out.DigitaloceanConfig = resp
 		out.ID = resp.ID
 		out.Links = resp.Links
@@ -332,7 +349,7 @@ func getMachineConfigV2ByID(c *Config, id, kind string) (*MachineConfigV2, error
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2HarvesterKind:
 		resp := &MachineConfigV2Harvester{}
-		err = c.getObjectV2ByID(rancher2DefaultLocalClusterID, id, machineConfigV2HarvesterAPIType, resp)
+		err = lookup(machineConfigV2HarvesterAPIType, resp)
 		out.HarvesterConfig = resp
 		out.ID = resp.ID
 		out.Links = resp.Links
@@ -342,7 +359,7 @@ func getMachineConfigV2ByID(c *Config, id, kind string) (*MachineConfigV2, error
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2LinodeKind:
 		resp := &MachineConfigV2Linode{}
-		err = c.getObjectV2ByID(rancher2DefaultLocalClusterID, id, machineConfigV2LinodeAPIType, resp)
+		err = lookup(machineConfigV2LinodeAPIType, resp)
 		out.LinodeConfig = resp
 		out.ID = resp.ID
 		out.Links = resp.Links
@@ -352,7 +369,7 @@ func getMachineConfigV2ByID(c *Config, id, kind string) (*MachineConfigV2, error
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2OpenstackKind:
 		resp := &MachineConfigV2Openstack{}
-		err = c.getObjectV2ByID(rancher2DefaultLocalClusterID, id, machineConfigV2OpenstackAPIType, resp)
+		err = lookup(machineConfigV2OpenstackAPIType, resp)
 		out.OpenstackConfig = resp
 		out.ID = resp.ID
 		out.Links = resp.Links
@@ -362,7 +379,7 @@ func getMachineConfigV2ByID(c *Config, id, kind string) (*MachineConfigV2, error
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2VmwarevsphereKind:
 		resp := &MachineConfigV2Vmwarevsphere{}
-		err = c.getObjectV2ByID(rancher2DefaultLocalClusterID, id, machineConfigV2VmwarevsphereAPIType, resp)
+		err = lookup(machineConfigV2VmwarevsphereAPIType, resp)
 		out.VmwarevsphereConfig = resp
 		out.ID = resp.ID
 		out.Links = resp.Links
@@ -372,7 +389,7 @@ func getMachineConfigV2ByID(c *Config, id, kind string) (*MachineConfigV2, error
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2GoogleGCEKind:
 		resp := &MachineConfigV2GoogleGCE{}
-		err = c.getObjectV2ByID(rancher2DefaultLocalClusterID, id, machineConfigV2GoogleGCEAPIType, resp)
+		err = lookup(machineConfigV2GoogleGCEAPIType, resp)
 		out.GoogleGCEConfig = resp
 		out.ID = resp.ID
 		out.Links = resp.Links
@@ -382,7 +399,7 @@ func getMachineConfigV2ByID(c *Config, id, kind string) (*MachineConfigV2, error
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2NutanixKind:
 		resp := &MachineConfigV2Nutanix{}
-		err = c.getObjectV2ByID(rancher2DefaultLocalClusterID, id, machineConfigV2NutanixAPIType, resp)
+		err = lookup(machineConfigV2NutanixAPIType, resp)
 		out.NutanixConfig = resp
 		out.ID = resp.ID
 		out.Links = resp.Links
@@ -395,7 +412,7 @@ func getMachineConfigV2ByID(c *Config, id, kind string) (*MachineConfigV2, error
 	}
 	if err != nil {
 		if !IsServerError(err) && !IsNotFound(err) && !IsForbidden(err) {
-			return nil, fmt.Errorf("Getting Machine Config V2: %s", err)
+			return nil, fmt.Errorf("get machine config v2: %w", err)
 		}
 		return nil, err
 	}

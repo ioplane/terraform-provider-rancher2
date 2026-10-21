@@ -54,11 +54,11 @@ type Config struct {
 	K8SSupportedVersions []string
 	Sync                 sync.Mutex
 	Client               Client
-	settingMu            sync.Mutex
-	settingGeneration    uint64
-	settingChanged       chan struct{}
-	settingFlight        *settingInit
-	settingReady         *settingClientState
+	contextMu            sync.Mutex
+	contextGeneration    uint64
+	contextChanged       chan struct{}
+	contextFlight        map[string]*contextInit
+	contextReady         map[string]*contextClientState
 }
 
 // GetRancherVersion get Rancher server version
@@ -127,9 +127,9 @@ func (c *Config) waitForRancherLocalActive() error {
 }
 
 func (c *Config) getK8SDefaultVersion() (string, error) {
-	c.settingMu.Lock()
+	c.contextMu.Lock()
 	version := c.K8SDefaultVersion
-	c.settingMu.Unlock()
+	c.contextMu.Unlock()
 	if len(version) > 0 {
 		return version, nil
 	}
@@ -147,9 +147,9 @@ func (c *Config) getK8SDefaultVersion() (string, error) {
 		k8sVer, err := c.Client.Management.Setting.ByID("k8s-version")
 		if err == nil {
 			version = k8sVer.Value
-			c.settingMu.Lock()
+			c.contextMu.Lock()
 			c.K8SDefaultVersion = version
-			c.settingMu.Unlock()
+			c.contextMu.Unlock()
 			return version, nil
 		}
 		if !IsServerError(err) && !IsForbidden(err) {
@@ -206,21 +206,21 @@ func (c *Config) UpdateToken(token string) error {
 	if len(token) == 0 {
 		return fmt.Errorf("token is nil")
 	}
-	c.settingMu.Lock()
+	c.contextMu.Lock()
 	c.TokenKey = token
-	old := c.invalidateSettingLocked()
-	c.settingMu.Unlock()
-	closeSettingIdle(old)
+	old := c.invalidateContextClientsLocked()
+	c.contextMu.Unlock()
+	closeContextIdle(old...)
 
 	return c.RestartClients()
 }
 
 // RestartClients connections
 func (c *Config) RestartClients() error {
-	c.settingMu.Lock()
-	old := c.invalidateSettingLocked()
-	c.settingMu.Unlock()
-	closeSettingIdle(old)
+	c.contextMu.Lock()
+	old := c.invalidateContextClientsLocked()
+	c.contextMu.Unlock()
+	closeContextIdle(old...)
 	c.Sync.Lock()
 	if c.Client.Management != nil {
 		c.Client.Management = nil
@@ -389,11 +389,11 @@ func (c *Config) NormalizeURL() error {
 	if err != nil {
 		return err
 	}
-	c.settingMu.Lock()
+	c.contextMu.Lock()
 	c.URL = url
-	old := c.invalidateSettingLocked()
-	c.settingMu.Unlock()
-	closeSettingIdle(old)
+	old := c.invalidateContextClientsLocked()
+	c.contextMu.Unlock()
+	closeContextIdle(old...)
 	return nil
 }
 

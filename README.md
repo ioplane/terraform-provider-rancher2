@@ -149,7 +149,9 @@ Setting read context pilot
 
 The `rancher2_setting` data source carries the SDK caller context through readiness, schema discovery, default-version lookup, initialization waits and the final read. Its private read-only client cache is separate from legacy management clients. Token updates, client restarts and URL normalization invalidate this cache; an already acquired snapshot may finish with its original credentials. Supported configuration methods synchronize pilot snapshots; concurrent direct writes to exported `Config` fields are outside this contract.
 
-The exact Norman fork replacement in `go.mod` supplies the additive context API. Other resources and legacy client factories retain their existing behavior. The extra cache may add discovery requests and connection pools; this pilot does not establish whole-provider cancellation, binary compatibility, performance or live acceptance.
+MachineConfig reads also carry the caller context through cold Catalog discovery, initialization waits and GET retries. Setting and Catalog reuse the same private cache algorithm with separate API-scope keys; supported token, restart and URL changes invalidate every scope. Only a completed resource GET returning HTTP 404 clears identity; schema discovery errors and canceled responses preserve it.
+
+The exact Norman fork replacement in `go.mod` supplies the additive context API. MachineConfig Create, Update, Delete and shared lifecycle waits retain legacy clients; the final read called by legacy Update still starts with a background context. The extra cache may add discovery requests and connection pools; this source slice does not establish whole-provider cancellation, binary compatibility, performance or live acceptance.
 
 Nutanix hardware options
 -----------------------

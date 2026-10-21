@@ -203,6 +203,7 @@ func TestNutanixMachineHardwareBoundary(t *testing.T) {
 			}}
 			client := &clientbase.APIBaseClient{Ops: ops, Types: ops.Types, Opts: ops.Opts}
 			config := &Config{Timeout: time.Second, Client: Client{CatalogV2: map[string]*clientbase.APIBaseClient{"local": client}}}
+			config.contextReady = map[string]*contextClientState{"local": {client: client}}
 			var err error
 			switch {
 			case tc.malformed:
