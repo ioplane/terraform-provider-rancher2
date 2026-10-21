@@ -194,3 +194,114 @@ func TestMachineConfigContextRead(t *testing.T) {
 		})
 	}
 }
+
+func TestMachineConfigContextDelete(t *testing.T) {
+	const id = "fleet-default/nc-context"
+	resourcePath := "/k8s/clusters/local/v1/" + machineConfigV2NutanixAPIType + "/" + id
+	for _, name := range []string{"pre_cancel", "initialization_404", "mutation_canceled", "mutation_404", "wait_canceled", "success", "snapshot_invalidation"} {
+		t.Run(name, func(t *testing.T) {
+			block := newSettingContextBlock()
+			var deleted atomic.Bool
+			var polls atomic.Int32
+			var c *Config
+			var f *settingContextFixture
+			f = newSettingContextFixture(t, true, func(w http.ResponseWriter, r *http.Request) bool {
+				if name == "initialization_404" && r.URL.Path == "/k8s/clusters/local/v1" {
+					http.Error(w, "schema unavailable", http.StatusNotFound)
+					return true
+				}
+				if r.URL.Path != resourcePath {
+					return false
+				}
+				if r.Header.Get("Authorization") != "Bearer old-token" {
+					t.Errorf("resource request changed credential snapshot")
+				}
+				if r.Method == http.MethodDelete {
+					deleted.Store(true)
+					switch name {
+					case "mutation_canceled":
+						block.serve(w, r, true, http.StatusOK)
+					case "mutation_404":
+						http.Error(w, "uncertain delete response", http.StatusNotFound)
+					default:
+						w.WriteHeader(http.StatusNoContent)
+					}
+					return true
+				}
+				if deleted.Load() {
+					poll := polls.Add(1)
+					if name == "wait_canceled" {
+						block.serve(w, r, true, http.StatusOK)
+						return true
+					}
+					if name != "success" || poll > 1 {
+						http.Error(w, "resource absent", http.StatusNotFound)
+						return true
+					}
+				} else if name == "snapshot_invalidation" {
+					f.reply(t, w, r)
+					if err := c.UpdateToken("new-token"); err != nil {
+						t.Errorf("invalidate snapshot: %v", err)
+					}
+					return true
+				}
+				return false
+			})
+			c = f.config()
+			c.Timeout = 5 * time.Second
+			if name == "initialization_404" {
+				c.Timeout = 0
+			}
+			d := schema.TestResourceDataRaw(t, machineConfigV2Fields(), map[string]any{
+				"generate_name": "context", "nutanix_config": []any{map[string]any{"cluster": "previous", "vm_image": "previous", "vm_network": []any{"previous"}}},
+			})
+			require.NoError(t, d.Set("kind", machineConfigV2NutanixKind))
+			d.SetId(id)
+			ctx, cancel := context.WithTimeout(t.Context(), 12*time.Second)
+			defer cancel()
+			deleteCtx, stopDelete := context.WithCancel(ctx)
+			if name == "pre_cancel" {
+				stopDelete()
+			}
+			var wg sync.WaitGroup
+			defer func() { stopDelete(); block.unblock(); wg.Wait() }()
+			result := make(chan diag.Diagnostics, 1)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				result <- resourceRancher2MachineConfigV2().DeleteContext(deleteCtx, d, c)
+			}()
+			if name == "mutation_canceled" || name == "wait_canceled" {
+				settingContextAwait(ctx, t, block.entered)
+				stopDelete()
+			}
+			diagnostics := <-result
+			gets, mutations := f.counts()
+			switch name {
+			case "pre_cancel", "initialization_404":
+				require.Zero(t, mutations)
+			default:
+				require.Equal(t, 1, mutations, "uncertain mutations must never be replayed")
+			}
+			if name == "success" || name == "snapshot_invalidation" {
+				require.False(t, diagnostics.HasError(), "%v", diagnostics)
+				require.Empty(t, d.Id())
+				if name == "success" {
+					require.EqualValues(t, 2, polls.Load(), "an object still present must remain pending")
+				} else {
+					require.Nil(t, c.contextReady["local"], "Delete must not acquire a new generation after invalidation")
+				}
+			} else {
+				require.True(t, diagnostics.HasError())
+				require.Equal(t, id, d.Id())
+				require.Equal(t, "previous", d.Get("nutanix_config.0.cluster"))
+				if name == "pre_cancel" {
+					require.Zero(t, gets)
+				}
+				if name == "mutation_canceled" || name == "mutation_404" {
+					require.Zero(t, polls.Load())
+				}
+			}
+		})
+	}
+}

@@ -299,12 +299,14 @@ func (f *settingContextFixture) reply(t *testing.T, w http.ResponseWriter, r *ht
 		endpoint := base + r.URL.Path
 		w.Header().Set("X-API-Schemas", endpoint)
 		response = map[string]any{"data": []any{map[string]any{
-			"id": machineConfigV2NutanixAPIType, "resourceMethods": []string{http.MethodGet},
+			"id": machineConfigV2NutanixAPIType, "resourceMethods": []string{http.MethodGet, http.MethodDelete},
 			"links": map[string]string{"collection": endpoint + "/" + machineConfigV2NutanixAPIType},
 		}}}
 	case "/k8s/clusters/local/v1/" + machineConfigV2NutanixAPIType + "/fleet-default/nc-context":
 		out := *testMachineConfigV2NutanixConf
 		out.ID = "fleet-default/nc-context"
+		out.Type = machineConfigV2NutanixAPIType
+		out.Links = map[string]string{"self": base + r.URL.Path}
 		out.Kind = machineConfigV2NutanixKind
 		response = &out
 	default:

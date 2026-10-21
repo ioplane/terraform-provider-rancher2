@@ -3,6 +3,7 @@ package rancher2
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/rancher/norman/clientbase"
 )
@@ -73,29 +74,39 @@ func getMachineConfigV2ByIDContext(ctx context.Context, c *Config, id, kind stri
 		if err != nil {
 			return err
 		}
-		var lastErr error
-		for {
-			if err := phase.Err(); err != nil {
-				if lastErr != nil {
-					return fmt.Errorf("read machine config %q: %w (last error: %w)", id, err, lastErr)
-				}
-				return fmt.Errorf("read machine config %q: %w", id, err)
-			}
-			err = cli.Ops.DoByIDContext(phase, apiType, id, out)
-			if err == nil {
-				return nil
-			}
-			lookup := &resourceLookupError{cause: err}
-			if !IsServerError(err) && !IsUnknownSchemaType(err) {
-				return lookup
-			}
-			lastErr = lookup
-			if timeout <= 0 {
-				return fmt.Errorf("read machine config %q: %w (last error: %w)", id, context.DeadlineExceeded, lookup)
-			}
-			if waitErr := rancherRetryContext(phase); waitErr != nil {
-				return fmt.Errorf("read machine config %q: %w (last error: %w)", id, waitErr, lookup)
-			}
-		}
+		return machineConfigLookupContext(phase, cli, timeout, id, apiType, out)
 	})
+}
+
+func machineConfigLookupContext(ctx context.Context, cli *clientbase.APIBaseClient, timeout time.Duration, id, apiType string, out any) error {
+	phase := ctx
+	cancel := func() {}
+	if timeout > 0 {
+		phase, cancel = context.WithTimeout(ctx, timeout)
+	}
+	defer cancel()
+	var lastErr error
+	for {
+		if err := phase.Err(); err != nil {
+			if lastErr != nil {
+				return fmt.Errorf("read machine config %q: %w (last error: %w)", id, err, lastErr)
+			}
+			return fmt.Errorf("read machine config %q: %w", id, err)
+		}
+		err := cli.Ops.DoByIDContext(phase, apiType, id, out)
+		if err == nil {
+			return nil
+		}
+		lookup := &resourceLookupError{cause: err}
+		if !IsServerError(err) && !IsUnknownSchemaType(err) {
+			return lookup
+		}
+		lastErr = lookup
+		if timeout <= 0 {
+			return fmt.Errorf("read machine config %q: %w (last error: %w)", id, context.DeadlineExceeded, lookup)
+		}
+		if waitErr := rancherRetryContext(phase); waitErr != nil {
+			return fmt.Errorf("read machine config %q: %w (last error: %w)", id, waitErr, lookup)
+		}
+	}
 }

@@ -75,7 +75,7 @@ func TestMachineConfigV2ReadIdentity(t *testing.T) {
 			}
 			calls = 0
 			d.SetId(id)
-			err = resourceRancher2MachineConfigV2Delete(d, config)
+			err = resourceRancher2MachineConfigV2Delete(t.Context(), d, config)
 			if tc.status == http.StatusNotFound {
 				if err != nil || d.Id() != "" || d.State() != nil {
 					t.Fatalf("404 Delete: err=%v ID=%q state=%v", err, d.Id(), d.State())

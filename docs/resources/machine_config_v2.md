@@ -8,7 +8,7 @@ Provides a Rancher v2 Machine config v2 resource. This can be used to create Mac
 
 The supported cloud providers includes `amazonec2`, `azure`, `digitalocean`, `harvester`, `linode`, `nutanix`, `openstack`, and `vsphere`.
 
-Reads propagate Terraform cancellation through Catalog initialization and lookup retries. Only a completed resource lookup returning HTTP 404 clears the resource ID; discovery failures, access refusal and cancellation preserve prior state. Create, Update, Delete and shared lifecycle waits remain on legacy clients; the final refresh called by Update has a background context.
+Reads propagate Terraform cancellation through Catalog initialization and lookup retries. Only a completed resource lookup returning HTTP 404 clears the resource ID; discovery failures, access refusal and cancellation preserve prior state. Delete carries the caller context and configured delete timeout through lookup, one DELETE and absence polling using a single client snapshot. A successful DELETE alone does not confirm absence; mutation or wait errors preserve identity without replaying the write. Create, Update and shared legacy lifecycle waits remain on legacy clients; the final refresh called by Update has a background context.
 
 
 Starting with Rancher v2.12.0 and above, `google` is also offered as a supported cloud provider.

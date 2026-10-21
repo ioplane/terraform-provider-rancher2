@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/rancher/norman/clientbase"
 	norman "github.com/rancher/norman/types"
 )
 
@@ -19,7 +20,9 @@ func resourceRancher2MachineConfigV2() *schema.Resource {
 			return diag.FromErr(readMachineConfigV2Context(ctx, d, meta))
 		},
 		Update: resourceRancher2MachineConfigV2Update,
-		Delete: resourceRancher2MachineConfigV2Delete,
+		DeleteContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2MachineConfigV2Delete(ctx, d, meta))
+		},
 		Schema: machineConfigV2Fields(),
 		CustomizeDiff: func(_ context.Context, d *schema.ResourceDiff, _ any) error {
 			plan := d.GetRawPlan()
@@ -144,34 +147,69 @@ func resourceRancher2MachineConfigV2Update(d *schema.ResourceData, meta interfac
 	return resourceRancher2MachineConfigV2Read(d, meta)
 }
 
-func resourceRancher2MachineConfigV2Delete(d *schema.ResourceData, meta interface{}) error {
+func resourceRancher2MachineConfigV2Delete(ctx context.Context, d *schema.ResourceData, meta any) error {
 	name := d.Get("name").(string)
 	kind := d.Get("kind").(string)
 	log.Printf("[INFO] Deleting Machine Config V2 %s", name)
 
-	obj, err := getMachineConfigV2ByID(meta.(*Config), d.Id(), kind)
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid machine config configuration type %T", meta)
+	}
+	id := d.Id()
+	if id == "" {
+		return fmt.Errorf("machine config deletion requires an ID")
+	}
+	config.contextMu.Lock()
+	timeout := config.Timeout
+	config.contextMu.Unlock()
+	var client *clientbase.APIBaseClient
+	defer func() { config.closeStaleContextClient(rancher2DefaultLocalClusterID, client) }()
+	lookup := func() (*MachineConfigV2, error) {
+		return machineConfigV2ByID(kind, func(apiType string, out any) error {
+			if client == nil {
+				var err error
+				client, err = config.catalogClientContext(ctx, rancher2DefaultLocalClusterID)
+				if err != nil {
+					return err
+				}
+			}
+			return machineConfigLookupContext(ctx, client, timeout, id, apiType, out)
+		})
+	}
+	obj, err := lookup()
 	if err != nil {
-		if IsNotFound(err) {
+		if resourceLookupNotFound(ctx, err) {
 			d.SetId("")
 			return nil
 		}
 		return err
 	}
-	err = deleteMachineConfigV2(meta.(*Config), obj)
+	resource := &norman.Resource{ID: obj.ID, Links: obj.Links, Type: obj.Type, Actions: obj.Actions}
+	err = client.Ops.DoResourceDeleteContext(ctx, obj.Type, resource)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete machine config %q: %w", id, err)
 	}
 	stateConf := &retry.StateChangeConf{
-		Pending:    []string{},
-		Target:     []string{"removed"},
-		Refresh:    machineConfigV2StateRefreshFunc(meta, obj.ID, obj.TypeMeta.Kind),
+		Pending: []string{"active"},
+		Target:  []string{"removed"},
+		Refresh: func() (any, string, error) {
+			current, lookupErr := lookup()
+			if lookupErr != nil {
+				if resourceLookupNotFound(ctx, lookupErr) {
+					return current, "removed", nil
+				}
+				return nil, "", lookupErr
+			}
+			return current, "active", nil
+		},
 		Timeout:    d.Timeout(schema.TimeoutDelete),
 		Delay:      1 * time.Second,
 		MinTimeout: 3 * time.Second,
 	}
-	_, waitErr := stateConf.WaitForState()
+	_, waitErr := stateConf.WaitForStateContext(ctx)
 	if waitErr != nil {
-		return fmt.Errorf("[ERROR] waiting for machine config v2 (%s) to be removed: %s", obj.ID, waitErr)
+		return fmt.Errorf("wait for machine config %q removal: %w", id, waitErr)
 	}
 	d.SetId("")
 	return nil
@@ -283,22 +321,6 @@ func createMachineConfigV2(c *Config, obj *MachineConfigV2) (*MachineConfigV2, e
 		return nil, fmt.Errorf("Creating Machine Config V2: %s", err)
 	}
 	return out, nil
-}
-
-func deleteMachineConfigV2(c *Config, obj *MachineConfigV2) error {
-	if c == nil {
-		return fmt.Errorf("Deleting Machine Config V2: Provider config is nil")
-	}
-	if obj == nil {
-		return fmt.Errorf("Deleting Machine Config V2: Machine Config V2 is nil")
-	}
-	resource := &norman.Resource{
-		ID:      obj.ID,
-		Links:   obj.Links,
-		Type:    obj.Type,
-		Actions: obj.Actions,
-	}
-	return c.deleteObjectV2(rancher2DefaultLocalClusterID, resource)
 }
 
 func getMachineConfigV2ByID(c *Config, id, kind string) (*MachineConfigV2, error) {
