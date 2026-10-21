@@ -109,7 +109,7 @@ func TestBootstrapReadPreservesIdentity(t *testing.T) {
 			case !tc.ready:
 				if err == nil {
 					t.Error("login failure returned nil error, want wrapped readiness error")
-				} else if cause := errors.Unwrap(err); cause == nil || !strings.Contains(cause.Error(), "Rancher is not ready:") {
+				} else if cause := errors.Unwrap(err); cause == nil || !strings.Contains(cause.Error(), "rancher is not ready:") {
 					t.Errorf("login failure error = %v, want wrapped readiness error", err)
 				}
 				if requests.Load() == 0 {
