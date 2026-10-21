@@ -44,7 +44,10 @@ func resourceRancher2NodeDriverCreate(ctx context.Context, d *schema.ResourceDat
 
 	log.Printf("[INFO] Creating Node Driver %s", nodeDriver.Name)
 
-	config := meta.(*Config)
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid node driver configuration type %T", meta)
+	}
 	client, err := config.apiClientContext(ctx, "")
 	if err != nil {
 		return err
@@ -81,7 +84,10 @@ func resourceRancher2NodeDriverCreate(ctx context.Context, d *schema.ResourceDat
 
 func resourceRancher2NodeDriverRead(ctx context.Context, d *schema.ResourceData, meta any) error {
 	log.Printf("[INFO] Refreshing Node Driver ID %s", d.Id())
-	config := meta.(*Config)
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid node driver configuration type %T", meta)
+	}
 	client, err := config.apiClientContext(ctx, "")
 	if err != nil {
 		return err
@@ -107,7 +113,10 @@ func readNodeDriverContext(ctx context.Context, d *schema.ResourceData, client *
 func resourceRancher2NodeDriverUpdate(ctx context.Context, d *schema.ResourceData, meta any) error {
 	log.Printf("[INFO] Updating Node Driver ID %s", d.Id())
 	id := d.Id()
-	config := meta.(*Config)
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid node driver configuration type %T", meta)
+	}
 	client, err := config.apiClientContext(ctx, "")
 	if err != nil {
 		return err
@@ -162,7 +171,10 @@ func resourceRancher2NodeDriverUpdate(ctx context.Context, d *schema.ResourceDat
 func resourceRancher2NodeDriverDelete(ctx context.Context, d *schema.ResourceData, meta any) error {
 	log.Printf("[INFO] Deleting Node Driver ID %s", d.Id())
 	id := d.Id()
-	config := meta.(*Config)
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid node driver configuration type %T", meta)
+	}
 	client, err := config.apiClientContext(ctx, "")
 	if err != nil {
 		return err
