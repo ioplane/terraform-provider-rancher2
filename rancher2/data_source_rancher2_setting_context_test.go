@@ -29,6 +29,80 @@ type settingContextFixture struct {
 	single          bool
 }
 
+func TestSettingContextManagedReadTimeout(t *testing.T) {
+	block := newSettingContextBlock()
+	f := newSettingContextFixture(t, true, func(w http.ResponseWriter, r *http.Request) bool {
+		if r.URL.Path != "/v3/settings/pilot" {
+			return false
+		}
+		block.serve(w, r, true, http.StatusNotFound)
+		return true
+	})
+	t.Cleanup(block.unblock)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	c := f.config()
+	if _, err := c.settingClientContext(ctx); err != nil {
+		t.Fatal(err)
+	}
+	d := schema.TestResourceDataRaw(t, settingFields(), map[string]interface{}{"name": "pilot", "value": "previous"})
+	d.SetId("pilot")
+	err := resourceRancher2SettingRead(ctx, d, c)
+	if !errors.Is(err, context.DeadlineExceeded) || ctx.Err() != nil || d.Id() != "pilot" || d.Get("value") != "previous" {
+		t.Fatalf("404 body timeout changed identity: error=%v caller=%v state=%v", err, ctx.Err(), d.State())
+	}
+}
+
+func TestSettingContextManagedRead(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+		cold   bool
+	}{
+		{"canceled", 0, false},
+		{"success", http.StatusOK, false},
+		{"forbidden", http.StatusForbidden, false},
+		{"missing", http.StatusNotFound, false},
+		{"initialization-missing", http.StatusNotFound, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newSettingContextFixture(t, true, func(w http.ResponseWriter, r *http.Request) bool {
+				if tc.status > http.StatusOK && ((!tc.cold && r.URL.Path == "/v3/settings/pilot") || (tc.cold && r.URL.Path == "/ping")) {
+					http.Error(w, "lookup failed", tc.status)
+					return true
+				}
+				return false
+			})
+			d := schema.TestResourceDataRaw(t, settingFields(), map[string]interface{}{"name": "pilot", "value": "previous"})
+			d.SetId("pilot")
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if tc.status == 0 {
+				cancel()
+			}
+			diags := resourceRancher2Setting().ReadWithoutTimeout(ctx, d, f.config())
+			gets, mutations := f.counts()
+			if mutations != 0 || (tc.status == 0 && gets != 0) {
+				t.Fatalf("unexpected requests: GET=%d mutations=%d", gets, mutations)
+			}
+			switch {
+			case tc.status == http.StatusOK:
+				if diags.HasError() || d.Id() != "pilot" || d.Get("value") != "stable" {
+					t.Fatalf("successful read: diagnostics=%v state=%v", diags, d.State())
+				}
+			case tc.status == http.StatusNotFound && !tc.cold:
+				if diags.HasError() || d.Id() != "" {
+					t.Fatalf("missing setting: diagnostics=%v ID=%q", diags, d.Id())
+				}
+			default:
+				if !diags.HasError() || d.Id() != "pilot" || d.Get("value") != "previous" {
+					t.Fatalf("failed read changed identity: diagnostics=%v state=%v", diags, d.State())
+				}
+			}
+		})
+	}
+}
+
 func TestSettingContextImport(t *testing.T) {
 	for _, status := range []int{0, http.StatusOK, http.StatusForbidden, http.StatusNotFound} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {

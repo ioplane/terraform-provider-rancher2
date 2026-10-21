@@ -21,6 +21,14 @@ type settingClientState struct {
 	k8sDefaultVersion string
 }
 
+// settingLookupError distinguishes a resource response from initialization failures.
+type settingLookupError struct {
+	cause error
+}
+
+func (e *settingLookupError) Error() string { return e.cause.Error() }
+func (e *settingLookupError) Unwrap() error { return e.cause }
+
 // invalidateSettingLocked changes metadata only; the caller closes the old pool after unlocking.
 func (c *Config) invalidateSettingLocked() *clientbase.APIBaseClient {
 	c.settingGeneration++
@@ -124,7 +132,7 @@ func (c *Config) settingByIDContext(ctx context.Context, name string) (*manageme
 	}()
 	setting := &managementClient.Setting{}
 	if err := cli.Ops.DoByIDContext(ctx, managementClient.SettingType, name, setting); err != nil {
-		return nil, fmt.Errorf("read setting %q: %w", name, err)
+		return nil, fmt.Errorf("read setting %q: %w", name, &settingLookupError{cause: err})
 	}
 	return setting, nil
 }

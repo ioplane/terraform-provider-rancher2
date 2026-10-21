@@ -1,19 +1,26 @@
 package rancher2
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/rancher/norman/clientbase"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
 
 func resourceRancher2Setting() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceRancher2SettingCreate,
-		Read:   resourceRancher2SettingRead,
+		ReadWithoutTimeout: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2SettingRead(ctx, d, meta))
+		},
 		Update: resourceRancher2SettingUpdate,
 		Delete: resourceRancher2SettingDelete,
 		Importer: &schema.ResourceImporter{
@@ -69,21 +76,26 @@ func resourceRancher2SettingCreate(d *schema.ResourceData, meta interface{}) err
 			"[ERROR] waiting for setting (%s) to be created: %s", newSetting.ID, waitErr)
 	}
 
-	return resourceRancher2SettingRead(d, meta)
+	return resourceRancher2SettingRead(context.Background(), d, meta)
 }
 
-func resourceRancher2SettingRead(d *schema.ResourceData, meta interface{}) error {
+func resourceRancher2SettingRead(ctx context.Context, d *schema.ResourceData, meta interface{}) error {
 	name := d.Get("name").(string)
 	log.Printf("[INFO] Refreshing Rancher2 Setting ID %s", d.Id())
 
-	client, err := meta.(*Config).ManagementClient()
-	if err != nil {
-		return err
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid setting configuration type %T", meta)
 	}
 
-	setting, err := client.Setting.ByID(name)
+	setting, err := config.settingByIDContext(ctx, name)
 	if err != nil {
-		if IsNotFound(err) || IsForbidden(err) {
+		if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
+		var lookup *settingLookupError
+		var apiError *clientbase.APIError
+		if errors.As(err, &lookup) && errors.As(lookup, &apiError) && apiError.StatusCode == http.StatusNotFound {
 			log.Printf("[INFO] Setting ID %s not found.", d.Id())
 			d.SetId("")
 			return nil
@@ -91,12 +103,11 @@ func resourceRancher2SettingRead(d *schema.ResourceData, meta interface{}) error
 		return err
 	}
 
-	err = flattenSetting(d, setting)
-	if err != nil {
-		return err
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("read setting %q: %w", name, err)
 	}
 
-	return nil
+	return flattenSetting(d, setting)
 }
 
 func resourceRancher2SettingUpdate(d *schema.ResourceData, meta interface{}) error {
@@ -136,7 +147,7 @@ func resourceRancher2SettingUpdate(d *schema.ResourceData, meta interface{}) err
 			"[ERROR] waiting for setting (%s) to be updated: %s", newSetting.ID, waitErr)
 	}
 
-	return resourceRancher2SettingRead(d, meta)
+	return resourceRancher2SettingRead(context.Background(), d, meta)
 }
 
 func resourceRancher2SettingDelete(d *schema.ResourceData, meta interface{}) error {
