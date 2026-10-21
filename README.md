@@ -153,7 +153,9 @@ MachineConfig reads also carry the caller context through cold Catalog discovery
 
 MachineConfig Delete uses the SDK caller context and configured delete timeout. Lookup, one DELETE and absence polling retain one client snapshot through invalidation. A successful DELETE does not confirm absence; canceled or failed mutations and waits preserve identity without replaying the write.
 
-The exact Norman fork replacement in `go.mod` supplies the additive context API. MachineConfig Create, Update and shared legacy lifecycle waits retain legacy clients; the final read called by legacy Update still starts with a background context. The extra cache may add discovery requests and connection pools; this source slice does not establish whole-provider cancellation, binary compatibility, performance or live acceptance.
+The exact Norman fork replacement in `go.mod` supplies the additive context API. MachineConfig and NodeDriver CRUD, and CloudCredential CRUD/import, use contextual operations. CloudCredential creation retains one client snapshot across node-driver activation, creation, polling and readback. An already active driver needs no activation POST; an uncertain activation response returns an error without replaying the action. Reconcile the driver state before retrying the operation. A returned credential ID is retained when later work is canceled; lookup responses with a different ID are rejected before state publication or deletion.
+
+Other legacy resource families and shared lifecycle helpers still require migration. The extra cache may add discovery requests and connection pools; these changes do not establish whole-provider cancellation, binary compatibility, performance or live acceptance.
 
 Nutanix hardware options
 -----------------------

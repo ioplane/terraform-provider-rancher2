@@ -142,8 +142,8 @@ github.com/hashicorp/terraform-svchost v0.1.1 h1:EZZimZ1GxdqFRinZ1tpJwVxxt49xc/S
 github.com/hashicorp/terraform-svchost v0.1.1/go.mod h1:mNsjQfZyf/Jhz35v6/0LWcv26+X7JPS+buii2c9/ctc=
 github.com/hashicorp/yamux v0.1.2 h1:XtB8kyFOyHXYVFnwT5C3+Bdo8gArse7j2AQ0DA0Uey8=
 github.com/hashicorp/yamux v0.1.2/go.mod h1:C+zze2n6e/7wshOZep2A70/aQU6QBRWJO/G6FT1wIns=
-github.com/ioplane/norman v0.0.0-20261021092757-80fce6f4cc96 h1:awO3QBdRiPw+CoFYQvqP+OjGfJo0GPpSUx5OI2j6DZI=
-github.com/ioplane/norman v0.0.0-20261021092757-80fce6f4cc96/go.mod h1:Qpwj8gU8isu/yPLTKpjgwK14cKWjSwSGE5w/y1wwMeo=
+github.com/ioplane/norman v0.0.0-20261021201950-4933bbff4f3c h1:8AGVqzoD4BJXGk1mO/4ruOuCWOoqpVAXxMsBcaNj4wQ=
+github.com/ioplane/norman v0.0.0-20261021201950-4933bbff4f3c/go.mod h1:Qpwj8gU8isu/yPLTKpjgwK14cKWjSwSGE5w/y1wwMeo=
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 h1:BQSFePA1RWJOlocH6Fxy8MmwDt+yVQYULKfN0RoTN8A=
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99/go.mod h1:1lJo3i6rXxKeerYnT8Nvf0QmHCRC1n8sfWVwXF2Frvo=
 github.com/jhump/protoreflect v1.17.0 h1:qOEr613fac2lOuTgWN4tPAtLL7fUSbuJL5X5XumQh94=

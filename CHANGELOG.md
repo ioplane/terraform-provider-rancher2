@@ -35,6 +35,9 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Carry the CloudCredential CRUD/import caller context through one client snapshot, HTTP requests, activation, polling and readback; retain known IDs on cancellation and reject foreign lookup identities before writes.
+- Send node-driver activation at most once per CloudCredential creation, return uncertain action failures without replay, and skip activation for an already active driver.
+
 - Preserve CloudCredential and ClusterDriver identity on refused lookups, and propagate ClusterDriver GET errors instead of reporting a successful refresh; only HTTP 404 confirms absence.
 - Return MachineConfig, NodeDriver, ClusterDriver and Feature state-write errors instead of ignoring them, and retain the prior identity until flattening succeeds.
 - Preserve NodeDriver identity and return access errors on HTTP 403 during refresh, deletion lookup and readiness polling; only HTTP 404 confirms absence.

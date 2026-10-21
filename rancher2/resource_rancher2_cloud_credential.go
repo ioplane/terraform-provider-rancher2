@@ -1,13 +1,16 @@
 package rancher2
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	norman "github.com/rancher/norman/types"
+	"github.com/rancher/norman/clientbase"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
 
@@ -24,12 +27,20 @@ const (
 
 func resourceRancher2CloudCredential() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceRancher2CloudCredentialCreate,
-		Read:   resourceRancher2CloudCredentialRead,
-		Update: resourceRancher2CloudCredentialUpdate,
-		Delete: resourceRancher2CloudCredentialDelete,
+		CreateContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2CloudCredentialCreate(ctx, d, meta))
+		},
+		ReadContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2CloudCredentialRead(ctx, d, meta))
+		},
+		UpdateContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2CloudCredentialUpdate(ctx, d, meta))
+		},
+		DeleteContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2CloudCredentialDelete(ctx, d, meta))
+		},
 		Importer: &schema.ResourceImporter{
-			State: resourceRancher2CloudCredentialsImport,
+			StateContext: resourceRancher2CloudCredentialsImport,
 		},
 		Schema: cloudCredentialFields(),
 		Timeouts: &schema.ResourceTimeout{
@@ -40,83 +51,97 @@ func resourceRancher2CloudCredential() *schema.Resource {
 	}
 }
 
-func resourceRancher2CloudCredentialCreate(d *schema.ResourceData, meta interface{}) error {
+func resourceRancher2CloudCredentialCreate(ctx context.Context, d *schema.ResourceData, meta any) error {
 	cloudCredential := expandCloudCredential(d)
 
 	log.Printf("[INFO] Creating Cloud Credential %s", cloudCredential.Name)
 
-	client, err := meta.(*Config).ManagementClient()
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid cloud credential configuration type %T", meta)
+	}
+	client, err := config.apiClientContext(ctx, "")
 	if err != nil {
 		return err
 	}
+	defer config.closeStaleContextClient("", client)
 
 	if nodeDriver, ok := d.Get("driver").(string); ok && nodeDriver != s3ConfigDriver {
-		err = meta.(*Config).activateNodeDriver(nodeDriver, d.Timeout(schema.TimeoutCreate))
+		err = activateNodeDriverContext(ctx, client, nodeDriver)
 		if err != nil {
 			return err
 		}
 	}
 
 	newCloudCredential := &CloudCredential{}
-	err = client.APIBaseClient.Create(managementClient.CloudCredentialType, cloudCredential, newCloudCredential)
+	err = client.Ops.DoCreateContext(ctx, managementClient.CloudCredentialType, cloudCredential, newCloudCredential)
+	if newCloudCredential.ID != "" {
+		d.SetId(newCloudCredential.ID)
+	}
 	if err != nil {
 		return err
 	}
-
-	d.SetId(newCloudCredential.ID)
+	if newCloudCredential.ID == "" {
+		return fmt.Errorf("created cloud credential response has no ID; reconcile the server before retrying")
+	}
 
 	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"active"},
-		Refresh:    cloudCredentialStateRefreshFunc(client, newCloudCredential.ID),
+		Refresh:    cloudCredentialStateRefreshFunc(ctx, client, newCloudCredential.ID),
 		Timeout:    d.Timeout(schema.TimeoutCreate),
 		Delay:      1 * time.Second,
 		MinTimeout: 3 * time.Second,
 	}
-	_, waitErr := stateConf.WaitForState()
+	_, waitErr := stateConf.WaitForStateContext(ctx)
 	if waitErr != nil {
-		return fmt.Errorf("[ERROR] waiting for cloud credential (%s) to be created: %s", newCloudCredential.ID, waitErr)
+		return fmt.Errorf("[ERROR] waiting for cloud credential (%s) to be created: %w", newCloudCredential.ID, waitErr)
 	}
 
-	return resourceRancher2CloudCredentialRead(d, meta)
+	return readCloudCredentialContext(ctx, d, client)
 }
 
-func resourceRancher2CloudCredentialRead(d *schema.ResourceData, meta interface{}) error {
+func resourceRancher2CloudCredentialRead(ctx context.Context, d *schema.ResourceData, meta any) error {
 	log.Printf("[INFO] Refreshing Cloud Credential ID %s", d.Id())
-	client, err := meta.(*Config).ManagementClient()
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid cloud credential configuration type %T", meta)
+	}
+	client, err := config.apiClientContext(ctx, "")
 	if err != nil {
 		return err
 	}
 
-	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
-		cloudCredential := &CloudCredential{}
-		err = client.APIBaseClient.ByID(managementClient.CloudCredentialType, d.Id(), cloudCredential)
-		if err != nil {
-			if IsNotFound(err) {
-				log.Printf("[INFO] Cloud Credential ID %s not found.", d.Id())
-				d.SetId("")
-				return nil
-			}
-			return retry.NonRetryableError(err)
-		}
-
-		if err = flattenCloudCredential(d, cloudCredential); err != nil {
-			return retry.NonRetryableError(err)
-		}
-
-		return nil
-	})
+	defer config.closeStaleContextClient("", client)
+	return readCloudCredentialContext(ctx, d, client)
 }
 
-func resourceRancher2CloudCredentialUpdate(d *schema.ResourceData, meta interface{}) error {
+func readCloudCredentialContext(ctx context.Context, d *schema.ResourceData, client *clientbase.APIBaseClient) error {
+	cloudCredential, err := cloudCredentialByIDContext(ctx, client, d.Id())
+	if err != nil {
+		if resourceLookupNotFound(ctx, err) {
+			d.SetId("")
+			return nil
+		}
+		return err
+	}
+	return flattenCloudCredential(d, cloudCredential)
+}
+
+func resourceRancher2CloudCredentialUpdate(ctx context.Context, d *schema.ResourceData, meta any) error {
 	log.Printf("[INFO] Updating Cloud Credential ID %s", d.Id())
-	client, err := meta.(*Config).ManagementClient()
+	id := d.Id()
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid cloud credential configuration type %T", meta)
+	}
+	client, err := config.apiClientContext(ctx, "")
 	if err != nil {
 		return err
 	}
 
-	cloudCredential := &norman.Resource{}
-	err = client.APIBaseClient.ByID(managementClient.CloudCredentialType, d.Id(), cloudCredential)
+	defer config.closeStaleContextClient("", client)
+	cloudCredential, err := cloudCredentialByIDContext(ctx, client, id)
 	if err != nil {
 		return err
 	}
@@ -132,7 +157,9 @@ func resourceRancher2CloudCredentialUpdate(d *schema.ResourceData, meta interfac
 	// migrate google cloud credential to node driver format, not GKE.
 	if driver == oldGoogleConfigKontainerDriver {
 		driver = googleConfigNodeDriver
-		d.Set("driver", driver)
+		if err := d.Set("driver", driver); err != nil {
+			return fmt.Errorf("migrate cloud credential driver: %w", err)
+		}
 	}
 
 	switch driver {
@@ -161,40 +188,47 @@ func resourceRancher2CloudCredentialUpdate(d *schema.ResourceData, meta interfac
 	}
 
 	newCloudCredential := &CloudCredential{}
-	err = client.APIBaseClient.Update(managementClient.CloudCredentialType, cloudCredential, update, newCloudCredential)
+	err = client.Ops.DoUpdateContext(ctx, managementClient.CloudCredentialType, &cloudCredential.Resource, update, newCloudCredential)
 	if err != nil {
 		return err
+	}
+	if newCloudCredential.ID != id {
+		return fmt.Errorf("updated cloud credential identity %q does not match %q", newCloudCredential.ID, id)
 	}
 
 	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active"},
 		Target:     []string{"active"},
-		Refresh:    cloudCredentialStateRefreshFunc(client, newCloudCredential.ID),
+		Refresh:    cloudCredentialStateRefreshFunc(ctx, client, id),
 		Timeout:    d.Timeout(schema.TimeoutUpdate),
 		Delay:      1 * time.Second,
 		MinTimeout: 3 * time.Second,
 	}
-	_, waitErr := stateConf.WaitForState()
+	_, waitErr := stateConf.WaitForStateContext(ctx)
 	if waitErr != nil {
 		return fmt.Errorf(
-			"[ERROR] waiting for cloud credential (%s) to be updated: %s", newCloudCredential.ID, waitErr)
+			"[ERROR] waiting for cloud credential (%s) to be updated: %w", id, waitErr)
 	}
 
-	return resourceRancher2CloudCredentialRead(d, meta)
+	return readCloudCredentialContext(ctx, d, client)
 }
 
-func resourceRancher2CloudCredentialDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceRancher2CloudCredentialDelete(ctx context.Context, d *schema.ResourceData, meta any) error {
 	log.Printf("[INFO] Deleting Cloud Credential ID %s", d.Id())
 	id := d.Id()
-	client, err := meta.(*Config).ManagementClient()
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return fmt.Errorf("invalid cloud credential configuration type %T", meta)
+	}
+	client, err := config.apiClientContext(ctx, "")
 	if err != nil {
 		return err
 	}
 
-	cloudCredential := &norman.Resource{}
-	err = client.APIBaseClient.ByID(managementClient.CloudCredentialType, id, cloudCredential)
+	defer config.closeStaleContextClient("", client)
+	cloudCredential, err := cloudCredentialByIDContext(ctx, client, id)
 	if err != nil {
-		if IsNotFound(err) {
+		if resourceLookupNotFound(ctx, err) {
 			log.Printf("[INFO] Cloud Credential ID %s not found.", id)
 			d.SetId("")
 			return nil
@@ -202,9 +236,9 @@ func resourceRancher2CloudCredentialDelete(d *schema.ResourceData, meta interfac
 		return err
 	}
 
-	err = client.APIBaseClient.Delete(cloudCredential)
+	err = client.Ops.DoResourceDeleteContext(ctx, managementClient.CloudCredentialType, &cloudCredential.Resource)
 	if err != nil {
-		return fmt.Errorf("Error removing Cloud Credential: %s", err)
+		return fmt.Errorf("remove cloud credential: %w", err)
 	}
 
 	log.Printf("[DEBUG] Waiting for cloud credential (%s) to be removed", id)
@@ -212,33 +246,88 @@ func resourceRancher2CloudCredentialDelete(d *schema.ResourceData, meta interfac
 	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"removed"},
-		Refresh:    cloudCredentialStateRefreshFunc(client, id),
+		Refresh:    cloudCredentialStateRefreshFunc(ctx, client, id),
 		Timeout:    d.Timeout(schema.TimeoutDelete),
 		Delay:      1 * time.Second,
 		MinTimeout: 3 * time.Second,
 	}
 
-	_, waitErr := stateConf.WaitForState()
+	_, waitErr := stateConf.WaitForStateContext(ctx)
 	if waitErr != nil {
-		return fmt.Errorf("[ERROR] waiting for cloud credential (%s) to be removed: %s", id, waitErr)
+		return fmt.Errorf("[ERROR] waiting for cloud credential (%s) to be removed: %w", id, waitErr)
 	}
 
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	d.SetId("")
 	return nil
 }
 
 // cloudCredentialStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher CloudCredential.
-func cloudCredentialStateRefreshFunc(client *managementClient.Client, credentialID string) retry.StateRefreshFunc {
+func cloudCredentialStateRefreshFunc(ctx context.Context, client *clientbase.APIBaseClient, credentialID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
-		obj := &CloudCredential{}
-		err := client.APIBaseClient.ByID(managementClient.CloudCredentialType, credentialID, obj)
+		obj, err := cloudCredentialByIDContext(ctx, client, credentialID)
 		if err != nil {
-			if IsNotFound(err) {
+			if resourceLookupNotFound(ctx, err) {
 				return obj, "removed", nil
 			}
 			return nil, "", err
 		}
 
 		return obj, "active", nil
+	}
+}
+
+func cloudCredentialByIDContext(ctx context.Context, client *clientbase.APIBaseClient, id string) (*CloudCredential, error) {
+	if id == "" {
+		return nil, fmt.Errorf("cloud credential lookup requires an ID")
+	}
+	credential := &CloudCredential{}
+	if err := client.Ops.DoByIDContext(ctx, managementClient.CloudCredentialType, id, credential); err != nil {
+		return nil, fmt.Errorf("read cloud credential %q: %w", id, &resourceLookupError{cause: err})
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if credential.ID != id {
+		return nil, fmt.Errorf("cloud credential lookup identity %q does not match %q", credential.ID, id)
+	}
+	return credential, nil
+}
+
+func activateNodeDriverContext(ctx context.Context, client *clientbase.APIBaseClient, id string) error {
+	if id == "" {
+		return fmt.Errorf("node driver activation requires an ID")
+	}
+	activated := false
+	for {
+		driver, err := nodeDriverByIDContext(ctx, client, id)
+		if err == nil {
+			if driver.State == "active" {
+				return nil
+			}
+			if !activated {
+				// An action may have committed even when its response fails; never replay it.
+				if err := client.Ops.DoActionContext(ctx, managementClient.NodeDriverType, "activate", &driver.Resource, nil, nil); err != nil {
+					return fmt.Errorf("activate node driver %q; reconcile its state before retrying: %w", id, err)
+				}
+				activated = true
+				continue
+			}
+		} else {
+			var apiError *clientbase.APIError
+			retryable := errors.As(err, &apiError) && IsServerError(apiError) || IsUnknownSchemaType(err) || resourceLookupNotFound(ctx, err)
+			if !retryable {
+				return err
+			}
+		}
+		timer := time.NewTimer(rancher2RetriesWait * time.Second)
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			timer.Stop()
+			return fmt.Errorf("wait for node driver %q: %w", id, ctx.Err())
+		}
 	}
 }

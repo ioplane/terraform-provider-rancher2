@@ -22,6 +22,7 @@ func TestNodeDriverIdentity(t *testing.T) {
 
 func TestCloudCredentialIdentity(t *testing.T) {
 	testProvisioningLookupIdentity(t, "cloudCredential")
+	testCloudCredentialContext(t)
 }
 
 func TestClusterDriverIdentity(t *testing.T) {
@@ -31,7 +32,7 @@ func TestClusterDriverIdentity(t *testing.T) {
 func testProvisioningLookupIdentity(t *testing.T, kind string) {
 	t.Helper()
 	fields := nodeDriverFields
-	read, remove, refresh := resourceRancher2CloudCredentialRead, resourceRancher2CloudCredentialDelete, cloudCredentialStateRefreshFunc
+	read, remove, refresh := resourceRancher2ClusterDriverRead, resourceRancher2ClusterDriverDelete, clusterDriverStateRefreshFunc
 	switch kind {
 	case "nodeDriver":
 		read = func(d *schema.ResourceData, meta interface{}) error {
@@ -45,7 +46,15 @@ func testProvisioningLookupIdentity(t *testing.T, kind string) {
 		}
 	case "cloudCredential":
 		fields = cloudCredentialFields
-		read, remove, refresh = resourceRancher2CloudCredentialRead, resourceRancher2CloudCredentialDelete, cloudCredentialStateRefreshFunc
+		read = func(d *schema.ResourceData, meta interface{}) error {
+			return resourceRancher2CloudCredentialRead(t.Context(), d, meta)
+		}
+		remove = func(d *schema.ResourceData, meta interface{}) error {
+			return resourceRancher2CloudCredentialDelete(t.Context(), d, meta)
+		}
+		refresh = func(client *managementClient.Client, id string) retry.StateRefreshFunc {
+			return cloudCredentialStateRefreshFunc(t.Context(), &client.APIBaseClient, id)
+		}
 	case "kontainerDriver":
 		fields = clusterDriverFields
 		read, remove, refresh = resourceRancher2ClusterDriverRead, resourceRancher2ClusterDriverDelete, clusterDriverStateRefreshFunc

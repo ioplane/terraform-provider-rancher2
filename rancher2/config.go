@@ -1057,47 +1057,6 @@ func findUserByPrincipalID(users []managementClient.User, principalID string) *m
 	return nil
 }
 
-func (c *Config) activateNodeDriver(id string, interval time.Duration) error {
-	if id == "" {
-		return fmt.Errorf("[ERROR] Node Driver id is nil")
-	}
-
-	client, err := c.ManagementClient()
-	if err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), interval)
-	defer cancel()
-	for updated := false; ; {
-		driver, err := client.NodeDriver.ByID(id)
-		if err != nil && !IsServerError(err) && !IsUnknownSchemaType(err) && !IsNotFound(err) && !IsForbidden(err) {
-			return fmt.Errorf("[ERROR] Getting Node Driver %s: %v", id, err)
-		}
-		if driver != nil {
-			if driver.State == "active" {
-				return nil
-			}
-
-			if !updated {
-				_, err = client.NodeDriver.ActionActivate(driver)
-				if err == nil {
-					updated = true
-					continue
-				}
-				if !IsServerError(err) && !IsUnknownSchemaType(err) {
-					return fmt.Errorf("[ERROR] Activating Node Driver %s: %v", id, err)
-				}
-			}
-		}
-		select {
-		case <-time.After(rancher2RetriesWait * time.Second):
-		case <-ctx.Done():
-			return fmt.Errorf("Timeout activating Node Driver %s: %v", id, err)
-		}
-	}
-}
-
 func (c *Config) UserPasswordChanged(user *managementClient.User, pass string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(pass))
 	// Password has changed
