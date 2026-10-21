@@ -84,15 +84,23 @@ func (c *Config) isRancherReady() error {
 	url := c.URL + "/ping"
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
+	requestCtx := ctx
+	if c.Timeout <= 0 {
+		// Preserve the complete first probe only at this legacy no-caller-context boundary.
+		requestCtx = context.WithoutCancel(ctx)
+	}
 	for {
-		resp, err = DoGet(url, "", "", "", c.CACerts, c.Insecure)
+		resp, err = doGet(requestCtx, url, "", "", "", c.CACerts, c.Insecure)
 		if err == nil && rancher2ReadyAnswer == string(resp) {
 			return nil
 		}
 		select {
 		case <-time.After(rancher2RetriesWait * time.Second):
 		case <-ctx.Done():
-			return fmt.Errorf("Rancher is not ready: %v", err)
+			if err != nil {
+				return fmt.Errorf("Rancher is not ready: %w (last error: %w)", ctx.Err(), err)
+			}
+			return fmt.Errorf("Rancher is not ready: %w", ctx.Err())
 		}
 	}
 }

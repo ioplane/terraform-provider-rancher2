@@ -2,6 +2,7 @@ package rancher2
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -255,6 +256,10 @@ func DoPost(url, data, cacert string, insecure bool, headers map[string]string) 
 }
 
 func DoGet(url, username, password, token, cacert string, insecure bool) ([]byte, error) {
+	return doGet(context.Background(), url, username, password, token, cacert, insecure)
+}
+
+func doGet(ctx context.Context, url, username, password, token, cacert string, insecure bool) ([]byte, error) {
 	start := time.Now()
 
 	if url == "" {
@@ -296,11 +301,12 @@ func DoGet(url, username, password, token, cacert string, insecure bool) ([]byte
 		}
 		transport.TLSClientConfig.RootCAs = rootCAs
 	}
+	defer transport.CloseIdleConnections()
 	client.Transport = transport
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Doing get: %v", err)
+		return nil, fmt.Errorf("Doing get: %w", err)
 	}
 	if len(token) > 0 {
 		req.Header.Add("Authorization", "Bearer "+token)
@@ -310,7 +316,7 @@ func DoGet(url, username, password, token, cacert string, insecure bool) ([]byte
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Doing get: %v", err)
+		return nil, fmt.Errorf("Doing get: %w", err)
 	}
 	defer resp.Body.Close()
 

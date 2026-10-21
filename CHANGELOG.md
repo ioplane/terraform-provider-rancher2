@@ -18,6 +18,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Bound Rancher readiness HTTP headers, response bodies and retry waits by positive provider timeouts while preserving the first complete probe for direct nonpositive Config timeouts.
 - Reject nonempty ca_certs without a parseable PEM certificate during provider configuration, including when insecure is enabled.
 
 - Require the registry filter validation parent and all nine exact subcases in fork CI, with at least 41 critical run/pass events.
