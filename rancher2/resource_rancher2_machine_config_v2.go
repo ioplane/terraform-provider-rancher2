@@ -79,7 +79,7 @@ func resourceRancher2MachineConfigV2Read(d *schema.ResourceData, meta interface{
 	kind := d.Get("kind").(string)
 	obj, err := getMachineConfigV2ByID(meta.(*Config), d.Id(), kind)
 	if err != nil {
-		if IsNotFound(err) || IsForbidden(err) || IsNotAccessibleByID(err) {
+		if IsNotFound(err) {
 			log.Printf("[INFO] Machine Config V2 %s not found", d.Id())
 			d.SetId("")
 			return nil

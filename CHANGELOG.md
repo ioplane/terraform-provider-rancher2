@@ -24,6 +24,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Preserve MachineConfig identity and report access refusal or missing schema GET permission during refresh; only HTTP 404 marks the object absent.
 - Preserve managed Setting identity on cancellation, access refusal and client initialization failure; clear it only after the Setting lookup returns HTTP 404. Managed reads now receive the Terraform caller context.
 - Propagate Terraform cancellation through Setting imports without publishing imported state on lookup failure.
 - Return a Setting diagnostic for missing, typed-nil or invalid provider metadata without changing prior state or exposing metadata values.
