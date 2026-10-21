@@ -11,6 +11,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Require the readiness deadline parent and all six exact subcases in fork CI, with at least 57 critical run/pass events.
 - Require the provider CA validation parent and all eight exact subcases in fork CI, with at least 50 critical run/pass events.
 
 ### Fixed
