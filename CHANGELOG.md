@@ -7,6 +7,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Add opt-in Nutanix NIC queues and management subnet fields with no defaults, integer-to-string wire conversion, overflow-safe CPU capacity validation and installed-schema checks before writes.
 - Require the MachineConfig refresh identity parent and all three refusal/absence controls by exact name in fork CI, with at least 136 critical run/pass events.
 - Require all sixteen Setting lifecycle mutation controls by exact name in fork CI, with at least 132 critical run/pass events.
 - Require the Setting importer and managed-read regression cases by exact name in fork CI, including response-body timeout identity preservation, with at least 115 critical run/pass events.
@@ -25,6 +26,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Preserve MachineConfig identity when a successful response drops requested Nutanix hardware fields, and report malformed queue values during refresh instead of silently losing intent.
 - Preserve MachineConfig identity and report access refusal or missing schema GET permission during refresh; only HTTP 404 marks the object absent.
 - Preserve managed Setting identity on cancellation, access refusal and client initialization failure; clear it only after the Setting lookup returns HTTP 404. Managed reads now receive the Terraform caller context.
 - Propagate Terraform cancellation through Setting imports without publishing imported state on lookup failure.

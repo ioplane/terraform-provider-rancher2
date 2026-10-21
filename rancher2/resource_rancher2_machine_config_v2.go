@@ -18,6 +18,17 @@ func resourceRancher2MachineConfigV2() *schema.Resource {
 		Update: resourceRancher2MachineConfigV2Update,
 		Delete: resourceRancher2MachineConfigV2Delete,
 		Schema: machineConfigV2Fields(),
+		CustomizeDiff: func(_ context.Context, d *schema.ResourceDiff, _ any) error {
+			plan := d.GetRawPlan()
+			if plan.IsNull() || !plan.IsKnown() || !plan.GetAttr("nutanix_config").IsWhollyKnown() {
+				return nil
+			}
+			config, ok := d.Get("nutanix_config").([]any)
+			if !ok {
+				return nil
+			}
+			return validateNutanixMachineHardware(expandMachineConfigV2Nutanix(config, &MachineConfigV2{}))
+		},
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(3 * time.Minute),
 			Update: schema.DefaultTimeout(10 * time.Minute),
@@ -39,6 +50,9 @@ func resourceRancher2MachineConfigV2Create(d *schema.ResourceData, meta interfac
 
 	d.SetId(newObj.ID)
 	d.Set("kind", newObj.TypeMeta.Kind)
+	if err := checkNutanixMachineHardwareEcho(obj.NutanixConfig, newObj.NutanixConfig); err != nil {
+		return err
+	}
 
 	err = waitForMachineConfigV2(d, meta.(*Config), d.Timeout(schema.TimeoutCreate))
 	if err != nil {
@@ -98,7 +112,12 @@ func resourceRancher2MachineConfigV2Update(d *schema.ResourceData, meta interfac
 		return err
 	}
 	d.SetId(newObj.ID)
-	flattenMachineConfigV2(d, newObj)
+	if err := checkNutanixMachineHardwareEcho(obj.NutanixConfig, newObj.NutanixConfig); err != nil {
+		return err
+	}
+	if err := flattenMachineConfigV2(d, newObj); err != nil {
+		return err
+	}
 	stateConf := &retry.StateChangeConf{
 		Pending:    []string{},
 		Target:     []string{"active"},
@@ -235,6 +254,16 @@ func createMachineConfigV2(c *Config, obj *MachineConfigV2) (*MachineConfigV2, e
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2NutanixKind:
 		resp := &MachineConfigV2Nutanix{}
+		if err := validateNutanixMachineHardware(obj.NutanixConfig); err != nil {
+			return nil, err
+		}
+		client, clientErr := c.CatalogV2Client(rancher2DefaultLocalClusterID)
+		if clientErr != nil {
+			return nil, clientErr
+		}
+		if err := requireNutanixMachineHardware(obj.NutanixConfig, client.Types[machineConfigV2NutanixAPIType], false); err != nil {
+			return nil, err
+		}
 		err = c.createObjectV2(rancher2DefaultLocalClusterID, machineConfigV2NutanixAPIType, obj.NutanixConfig, resp)
 		out.NutanixConfig = resp
 		out.ID = resp.ID
@@ -446,6 +475,16 @@ func updateMachineConfigV2(c *Config, obj *MachineConfigV2) (*MachineConfigV2, e
 		out.ObjectMeta = resp.ObjectMeta
 	case machineConfigV2NutanixKind:
 		resp := &MachineConfigV2Nutanix{}
+		if err := validateNutanixMachineHardware(obj.NutanixConfig); err != nil {
+			return nil, err
+		}
+		client, clientErr := c.CatalogV2Client(rancher2DefaultLocalClusterID)
+		if clientErr != nil {
+			return nil, clientErr
+		}
+		if err := requireNutanixMachineHardware(obj.NutanixConfig, client.Types[machineConfigV2NutanixAPIType], true); err != nil {
+			return nil, err
+		}
 		err = c.updateObjectV2(rancher2DefaultLocalClusterID, obj.ID, machineConfigV2NutanixAPIType, obj.NutanixConfig, resp)
 		out.NutanixConfig = resp
 		out.ID = resp.ID

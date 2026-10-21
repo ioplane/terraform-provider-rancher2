@@ -1,6 +1,12 @@
 package rancher2
 
 import (
+	"fmt"
+	"math"
+	"strconv"
+	"strings"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	norman "github.com/rancher/norman/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -36,6 +42,9 @@ type machineConfigV2Nutanix struct {
 	BootType          string   `json:"bootType,omitempty" yaml:"bootType,omitempty"`
 	Timeout           string   `json:"timeout,omitempty" yaml:"timeout,omitempty"`
 	VMGPU             []string `json:"vmGpu,omitempty" yaml:"vmGpu,omitempty"`
+
+	VMNicQueues         string `json:"vmNicQueues,omitempty" yaml:"vmNicQueues,omitempty"`
+	VMManagementNetwork string `json:"vmManagementNetwork,omitempty" yaml:"vmManagementNetwork,omitempty"`
 }
 
 type MachineConfigV2Nutanix struct {
@@ -43,9 +52,13 @@ type MachineConfigV2Nutanix struct {
 	machineConfigV2Nutanix
 }
 
-func flattenMachineConfigV2Nutanix(in *MachineConfigV2Nutanix) []any {
+func flattenMachineConfigV2Nutanix(in *MachineConfigV2Nutanix) ([]any, error) {
 	if in == nil {
-		return nil
+		return nil, nil
+	}
+	queues, err := parseNutanixNICQueues(in.VMNicQueues)
+	if err != nil {
+		return nil, err
 	}
 
 	obj := make(map[string]any)
@@ -79,6 +92,12 @@ func flattenMachineConfigV2Nutanix(in *MachineConfigV2Nutanix) []any {
 	if len(in.VMNetwork) > 0 {
 		obj["vm_network"] = toArrayInterface(in.VMNetwork)
 	}
+	if queues > 0 {
+		obj["vm_nic_queues"] = queues
+	}
+	if in.VMManagementNetwork != "" {
+		obj["vm_management_network"] = in.VMManagementNetwork
+	}
 	if len(in.VMImage) > 0 {
 		obj["vm_image"] = in.VMImage
 	}
@@ -111,7 +130,7 @@ func flattenMachineConfigV2Nutanix(in *MachineConfigV2Nutanix) []any {
 		obj["vm_gpu"] = toArrayInterface(in.VMGPU)
 	}
 
-	return []any{obj}
+	return []any{obj}, nil
 }
 
 func expandMachineConfigV2Nutanix(p []any, source *MachineConfigV2) *MachineConfigV2Nutanix {
@@ -164,6 +183,12 @@ func expandMachineConfigV2Nutanix(p []any, source *MachineConfigV2) *MachineConf
 	if v, ok := in["vm_network"].([]any); ok && len(v) > 0 {
 		obj.VMNetwork = toArrayString(v)
 	}
+	if v, ok := in["vm_nic_queues"].(int); ok && v > 0 {
+		obj.VMNicQueues = strconv.Itoa(v)
+	}
+	if v, ok := in["vm_management_network"].(string); ok {
+		obj.VMManagementNetwork = v
+	}
 	if v, ok := in["vm_image"].(string); ok && len(v) > 0 {
 		obj.VMImage = v
 	}
@@ -199,4 +224,96 @@ func expandMachineConfigV2Nutanix(p []any, source *MachineConfigV2) *MachineConf
 	}
 
 	return obj
+}
+
+func parseNutanixNICQueues(value string) (int, error) {
+	if value == "" {
+		return 0, nil
+	}
+	queues, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("invalid Nutanix vm_nic_queues: %w", err)
+	}
+	if queues < 1 {
+		return 0, fmt.Errorf("Nutanix vm_nic_queues must be positive")
+	}
+	return queues, nil
+}
+
+func validateNutanixMachineHardware(in *MachineConfigV2Nutanix) error {
+	if in == nil {
+		return nil
+	}
+	queues, err := parseNutanixNICQueues(in.VMNicQueues)
+	if err != nil {
+		return err
+	}
+	if queues > 0 {
+		cpus, err := strconv.ParseInt(in.VMCPUs, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid Nutanix vm_cpus for queues: %w", err)
+		}
+		cores, err := strconv.ParseInt(in.VMCores, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid Nutanix vm_cores for queues: %w", err)
+		}
+		if cpus < 1 || cores < 1 || cpus > math.MaxInt64/cores || int64(queues) > cpus*cores {
+			return fmt.Errorf("Nutanix vm_nic_queues requires positive, nonoverflowing vm_cpus * vm_cores with capacity for queues")
+		}
+	}
+	if in.VMManagementNetwork == "" {
+		return nil
+	}
+	if _, errs := validation.IsUUID(in.VMManagementNetwork, "vm_management_network"); len(errs) > 0 {
+		return fmt.Errorf("Nutanix vm_management_network must be a subnet UUID")
+	}
+	allUUIDs := true
+	for _, network := range in.VMNetwork {
+		if strings.EqualFold(network, in.VMManagementNetwork) {
+			return nil
+		}
+		if _, errs := validation.IsUUID(network, "vm_network"); len(errs) > 0 {
+			allUUIDs = false
+		}
+	}
+	if allUUIDs {
+		return fmt.Errorf("Nutanix vm_management_network must be among vm_network UUIDs")
+	}
+	// Named attachments are resolved and checked by the driver before VM allocation.
+	return nil
+}
+
+func requireNutanixMachineHardware(in *MachineConfigV2Nutanix, installed norman.Schema, update bool) error {
+	if in == nil || (in.VMNicQueues == "" && in.VMManagementNetwork == "") {
+		return nil
+	}
+	for _, field := range []struct{ name, value string }{
+		{"vmNicQueues", in.VMNicQueues},
+		{"vmManagementNetwork", in.VMManagementNetwork},
+	} {
+		if field.value == "" {
+			continue
+		}
+		definition, ok := installed.ResourceFields[field.name]
+		writable := definition.Create
+		if update {
+			writable = definition.Update
+		}
+		if !ok || definition.Type != "string" || !writable {
+			return fmt.Errorf("Nutanix installed schema lacks writable string field %s", field.name)
+		}
+	}
+	return nil
+}
+
+func checkNutanixMachineHardwareEcho(want, got *MachineConfigV2Nutanix) error {
+	if want == nil || (want.VMNicQueues == "" && want.VMManagementNetwork == "") {
+		return nil
+	}
+	if got == nil ||
+		(want.VMNicQueues != "" && want.VMNicQueues != got.VMNicQueues) ||
+		(want.VMManagementNetwork != "" && !strings.EqualFold(want.VMManagementNetwork, got.VMManagementNetwork)) {
+		return fmt.Errorf("Nutanix response did not retain requested hardware fields; preserve MachineConfig identity and verify installed schema")
+	}
+	return nil
 }

@@ -150,3 +150,10 @@ Setting read context pilot
 The `rancher2_setting` data source carries the SDK caller context through readiness, schema discovery, default-version lookup, initialization waits and the final read. Its private read-only client cache is separate from legacy management clients. Token updates, client restarts and URL normalization invalidate this cache; an already acquired snapshot may finish with its original credentials. Supported configuration methods synchronize pilot snapshots; concurrent direct writes to exported `Config` fields are outside this contract.
 
 The exact Norman fork replacement in `go.mod` supplies the additive context API. Other resources and legacy client factories retain their existing behavior. The extra cache may add discovery requests and connection pools; this pilot does not establish whole-provider cancellation, binary compatibility, performance or live acceptance.
+
+Nutanix hardware options
+-----------------------
+
+`nutanix_config.vm_nic_queues` is an optional positive integer bounded by `vm_cpus * vm_cores`. It is serialized as the string expected by the node-driver flag. `vm_management_network` optionally selects an attached subnet UUID; named-network resolution and membership remain the driver's responsibility. Omitted options retain the existing payload and driver defaults.
+
+Opt-in writes require matching writable string fields in the installed Rancher API schema. Missing fields fail before MachineConfig writes; responses that drop requested values return an error after retaining the assigned ID. This source guard does not establish DynamicSchema/CRD retention, hardware or guest configuration, supported platform versions or performance. Qualify the matching driver, complete schema chain and module/pool contract before adoption.

@@ -1,11 +1,248 @@
 package rancher2
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"maps"
+	"net/http"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/hashicorp/terraform-plugin-go/tfprotov5"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/rancher/norman/clientbase"
+	"github.com/rancher/norman/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func TestNutanixMachineHardwarePlan(t *testing.T) {
+	ctx := context.Background()
+	rpc := schema.NewGRPCProviderServer(&schema.Provider{ResourcesMap: map[string]*schema.Resource{
+		"rancher2_machine_config_v2": resourceRancher2MachineConfigV2(),
+	}})
+	s, err := rpc.GetProviderSchema(ctx, &tfprotov5.GetProviderSchemaRequest{})
+	require.NoError(t, err)
+	ty := s.ResourceSchemas["rancher2_machine_config_v2"].ValueType()
+	root, ok := ty.(tftypes.Object)
+	require.True(t, ok)
+	list, ok := root.AttributeTypes["nutanix_config"].(tftypes.List)
+	require.True(t, ok)
+	block, ok := list.ElementType.(tftypes.Object)
+	require.True(t, ok)
+	for _, name := range []string{"unknown_cpu", "unknown_network", "known_excess"} {
+		t.Run(name, func(t *testing.T) {
+			attrs := make(map[string]tftypes.Value, len(root.AttributeTypes))
+			for key, typ := range root.AttributeTypes {
+				attrs[key] = tftypes.NewValue(typ, nil)
+			}
+			fields := make(map[string]tftypes.Value, len(block.AttributeTypes))
+			for key, typ := range block.AttributeTypes {
+				fields[key] = tftypes.NewValue(typ, nil)
+			}
+			for key, value := range map[string]string{
+				"cluster": "cluster", "vm_image": "image", "vm_cpus": "1", "vm_cores": "1",
+				"vm_management_network": "11111111-2222-3333-4444-555555555555",
+			} {
+				fields[key] = tftypes.NewValue(tftypes.String, value)
+			}
+			fields["vm_nic_queues"] = tftypes.NewValue(tftypes.Number, 2)
+			network := tftypes.NewValue(tftypes.String, "11111111-2222-3333-4444-555555555555")
+			if name == "unknown_cpu" {
+				fields["vm_cpus"] = tftypes.NewValue(tftypes.String, tftypes.UnknownValue)
+			}
+			if name == "unknown_network" {
+				fields["vm_cpus"] = tftypes.NewValue(tftypes.String, "2")
+				network = tftypes.NewValue(tftypes.String, tftypes.UnknownValue)
+			}
+			fields["vm_network"] = tftypes.NewValue(block.AttributeTypes["vm_network"], []tftypes.Value{network})
+			attrs["generate_name"] = tftypes.NewValue(tftypes.String, "hardware")
+			attrs["nutanix_config"] = tftypes.NewValue(list, []tftypes.Value{tftypes.NewValue(block, fields)})
+			config, err := tfprotov5.NewDynamicValue(ty, tftypes.NewValue(ty, attrs))
+			require.NoError(t, err)
+			prior, err := tfprotov5.NewDynamicValue(ty, tftypes.NewValue(ty, nil))
+			require.NoError(t, err)
+			resp, err := rpc.PlanResourceChange(ctx, &tfprotov5.PlanResourceChangeRequest{
+				TypeName: "rancher2_machine_config_v2", PriorState: &prior, Config: &config, ProposedNewState: &config,
+			})
+			require.NoError(t, err)
+			var errors []string
+			for _, diagnostic := range resp.Diagnostics {
+				if diagnostic.Severity == tfprotov5.DiagnosticSeverityError {
+					errors = append(errors, diagnostic.Summary)
+				}
+			}
+			if name == "known_excess" {
+				require.NotEmpty(t, errors, "known invalid hardware must still fail planning")
+			} else {
+				require.Empty(t, errors, "unknown leaves must defer validation")
+				require.NotNil(t, resp.PlannedState)
+			}
+		})
+	}
+}
+
+func TestNutanixMachineHardwareWire(t *testing.T) {
+	legacy, err := json.Marshal(testMachineConfigV2NutanixConf)
+	require.NoError(t, err)
+	for _, queues := range []int{0, 1} {
+		t.Run(fmt.Sprint(queues), func(t *testing.T) {
+			original, ok := testMachineConfigV2NutanixInterface[0].(map[string]any)
+			require.True(t, ok)
+			input := maps.Clone(original)
+			if queues > 0 {
+				input["vm_nic_queues"] = queues
+				input["vm_management_network"] = "11111111-2222-3333-4444-555555555555"
+			}
+			source := &MachineConfigV2{machineConfigV2: machineConfigV2{ObjectMeta: testMachineConfigV2NutanixConf.ObjectMeta}}
+			expanded := expandMachineConfigV2Nutanix([]any{input}, source)
+			wire, err := json.Marshal(expanded)
+			require.NoError(t, err)
+			if queues == 0 {
+				require.Equal(t, legacy, wire, "omission must retain legacy fixture bytes and hash")
+			} else {
+				var fields map[string]json.RawMessage
+				require.NoError(t, json.Unmarshal(wire, &fields))
+				require.Equal(t, json.RawMessage(`"1"`), fields["vmNicQueues"])
+				require.Equal(t, json.RawMessage(`"11111111-2222-3333-4444-555555555555"`), fields["vmManagementNetwork"])
+			}
+			var decoded MachineConfigV2Nutanix
+			require.NoError(t, json.Unmarshal(wire, &decoded))
+			flat, err := flattenMachineConfigV2Nutanix(&decoded)
+			require.NoError(t, err)
+			require.Equal(t, []any{input}, flat)
+		})
+	}
+}
+
+func TestNutanixMachineHardwareValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name, queues, cpus, cores, management string
+		networks                              []string
+	}{
+		{name: "zero", queues: "0", cpus: "2", cores: "1"},
+		{name: "capacity", queues: "3", cpus: "2", cores: "1"},
+		{name: "overflow", queues: "2", cpus: "9223372036854775807", cores: "2"},
+		{name: "selector", management: "11111111-2222-3333-4444-555555555555", networks: []string{"22222222-2222-3333-4444-555555555555"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := &MachineConfigV2Nutanix{machineConfigV2Nutanix: machineConfigV2Nutanix{
+				VMNicQueues: tc.queues, VMCPUs: tc.cpus, VMCores: tc.cores,
+				VMManagementNetwork: tc.management, VMNetwork: tc.networks,
+			}}
+			require.Error(t, validateNutanixMachineHardware(input))
+		})
+	}
+	warnings, errs := machineConfigV2NutanixFields()["vm_nic_queues"].ValidateFunc(0, "vm_nic_queues")
+	require.Empty(t, warnings)
+	require.NotEmpty(t, errs, "explicit zero is invalid, separately from omission")
+}
+
+func TestNutanixMachineHardwareBoundary(t *testing.T) {
+	const id = "fleet-default/nc-hardware"
+	for _, tc := range []struct {
+		name                              string
+		update, missing, prune, malformed bool
+	}{
+		{name: "create"},
+		{name: "update", update: true},
+		{name: "missing_create", missing: true},
+		{name: "missing_update", missing: true, update: true},
+		{name: "pruned_create", prune: true},
+		{name: "pruned_update", prune: true, update: true},
+		{name: "malformed_read", malformed: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := schema.TestResourceDataRaw(t, machineConfigV2Fields(), map[string]any{
+				"generate_name": "hardware", "kind": machineConfigV2NutanixKind,
+				"nutanix_config": []any{map[string]any{"cluster": "fixture", "vm_image": "fixture", "vm_network": []any{"fixture"}, "vm_nic_queues": 2}},
+			})
+			require.NoError(t, d.Set("kind", machineConfigV2NutanixKind))
+			if tc.update || tc.malformed {
+				d.SetId(id)
+			}
+			obj := expandMachineConfigV2(d)
+			response := *obj.NutanixConfig
+			response.ID = id
+			response.Links = map[string]string{"self": "https://hardware.invalid/configs/" + id}
+			var calls []string
+			transport := catalogContractTransport(func(r *http.Request) (*http.Response, error) {
+				calls = append(calls, r.Method)
+				out := response
+				if r.Method != http.MethodGet {
+					var received MachineConfigV2Nutanix
+					if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
+						return nil, fmt.Errorf("decode hardware fixture: %w", err)
+					}
+					if received.VMNicQueues != "2" {
+						return nil, fmt.Errorf("queue field was not forwarded as a string")
+					}
+					if tc.prune {
+						out.VMNicQueues = ""
+					}
+				}
+				if tc.malformed {
+					out.VMNicQueues = "invalid"
+				}
+				body, err := json.Marshal(out)
+				if err != nil {
+					return nil, fmt.Errorf("encode hardware fixture: %w", err)
+				}
+				return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(string(body))), Request: r}, nil
+			})
+			fields := map[string]types.Field{}
+			if !tc.missing {
+				fields["vmNicQueues"] = types.Field{Type: "string", Create: !tc.update, Update: tc.update}
+			}
+			ops := &clientbase.APIOperations{Opts: &clientbase.ClientOpts{}, Client: &http.Client{Transport: transport, Timeout: time.Second}, Types: map[string]types.Schema{
+				machineConfigV2NutanixAPIType: {ID: machineConfigV2NutanixAPIType, ResourceMethods: []string{http.MethodGet, http.MethodPut}, CollectionMethods: []string{http.MethodPost}, ResourceFields: fields, Links: map[string]string{"collection": "https://hardware.invalid/configs"}},
+			}}
+			client := &clientbase.APIBaseClient{Ops: ops, Types: ops.Types, Opts: ops.Opts}
+			config := &Config{Timeout: time.Second, Client: Client{CatalogV2: map[string]*clientbase.APIBaseClient{"local": client}}}
+			var err error
+			switch {
+			case tc.malformed:
+				err = resourceRancher2MachineConfigV2Read(d, config)
+			case tc.prune || tc.missing:
+				if tc.update {
+					err = resourceRancher2MachineConfigV2Update(d, config)
+				} else {
+					err = resourceRancher2MachineConfigV2Create(d, config)
+				}
+			case tc.update:
+				_, err = updateMachineConfigV2(config, obj)
+			default:
+				_, err = createMachineConfigV2(config, obj)
+			}
+			if tc.missing {
+				require.Error(t, err)
+				require.Empty(t, calls, "unsupported schema must reject before reads or mutations")
+				return
+			}
+			want := []string{http.MethodPost}
+			if tc.update {
+				want = []string{http.MethodGet, http.MethodPut}
+			}
+			if tc.malformed {
+				want = []string{http.MethodGet}
+			}
+			require.Equal(t, want, calls, "no replay or post-pruning wait")
+			if tc.prune || tc.malformed {
+				require.Error(t, err)
+				require.Equal(t, id, d.Id())
+				require.NotNil(t, d.State())
+				require.Equal(t, id, d.State().ID)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
 
 var (
 	testMachineConfigV2NutanixConf = &MachineConfigV2Nutanix{
@@ -82,7 +319,8 @@ func TestFlattenMachineConfigV2Nutanix(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		output := flattenMachineConfigV2Nutanix(tc.Input)
+		output, err := flattenMachineConfigV2Nutanix(tc.Input)
+		assert.NoError(t, err)
 		assert.Equal(t, tc.ExpectedOutput, output, "Unexpected output from flattener.")
 	}
 }

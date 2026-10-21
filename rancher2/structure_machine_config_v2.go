@@ -60,7 +60,11 @@ func flattenMachineConfigV2(d *schema.ResourceData, in *MachineConfigV2) error {
 			return err
 		}
 	case machineConfigV2NutanixKind:
-		err := d.Set("nutanix_config", flattenMachineConfigV2Nutanix(in.NutanixConfig))
+		config, err := flattenMachineConfigV2Nutanix(in.NutanixConfig)
+		if err != nil {
+			return err
+		}
+		err = d.Set("nutanix_config", config)
 		if err != nil {
 			return err
 		}
