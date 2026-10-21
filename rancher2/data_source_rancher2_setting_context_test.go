@@ -42,7 +42,7 @@ func newSettingContextFixture(t *testing.T, single bool, hook func(http.Response
 		f.tokens = append(f.tokens, r.Header.Get("Authorization"))
 		f.mu.Unlock()
 		if r.Method != http.MethodGet {
-			http.Error(w, "mutation rejected", 405)
+			http.Error(w, "mutation rejected", http.StatusMethodNotAllowed)
 			return
 		}
 		if f.hook != nil && f.hook(w, r) {
@@ -650,7 +650,7 @@ func TestSettingContextPriorState(t *testing.T) {
 		if r.URL.Path != "/v3/settings/pilot" {
 			return false
 		}
-		http.Error(w, "denied", 403)
+		http.Error(w, "denied", http.StatusForbidden)
 		return true
 	})
 	d := schema.TestResourceDataRaw(t, dataSourceRancher2Setting().Schema, map[string]interface{}{"name": "pilot", "value": "previous"})
@@ -658,6 +658,17 @@ func TestSettingContextPriorState(t *testing.T) {
 	diags := dataSourceRancher2SettingReadContext(context.Background(), d, f.config())
 	if !diags.HasError() || d.Id() != "previous-id" || d.Get("value") != "previous" {
 		t.Fatalf("prior state changed: ID=%q value=%v diagnostics=%v", d.Id(), d.Get("value"), diags)
+	}
+	for _, meta := range []interface{}{nil, (*Config)(nil), "synthetic-metadata"} {
+		data := schema.TestResourceDataRaw(t, dataSourceRancher2Setting().Schema, map[string]interface{}{"name": "pilot", "value": "previous"})
+		data.SetId("previous-id")
+		diagnostics := dataSourceRancher2SettingReadContext(context.Background(), data, meta)
+		if !diagnostics.HasError() || data.Id() != "previous-id" || data.Get("value") != "previous" {
+			t.Fatalf("invalid meta changed prior state: ID=%q value=%v diagnostics=%v", data.Id(), data.Get("value"), diagnostics)
+		}
+		if strings.Contains(diagnostics[0].Summary, "synthetic-metadata") {
+			t.Fatal("invalid meta diagnostic exposed its value")
+		}
 	}
 }
 

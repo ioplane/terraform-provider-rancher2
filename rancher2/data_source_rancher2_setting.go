@@ -29,7 +29,11 @@ func dataSourceRancher2Setting() *schema.Resource {
 func dataSourceRancher2SettingReadContext(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	name := d.Get("name").(string)
 	log.Printf("[INFO] Refreshing Rancher2 Setting: %s", name)
-	setting, err := meta.(*Config).settingByIDContext(ctx, name)
+	config, ok := meta.(*Config)
+	if !ok || config == nil {
+		return diag.FromErr(fmt.Errorf("invalid setting configuration type %T", meta))
+	}
+	setting, err := config.settingByIDContext(ctx, name)
 	if err != nil {
 		return diag.FromErr(err)
 	}
