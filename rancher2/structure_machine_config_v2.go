@@ -99,10 +99,10 @@ func flattenMachineConfigV2(d *schema.ResourceData, in *MachineConfigV2) error {
 		return fmt.Errorf("[ERROR] Unsupported driver on node template: %s", kind)
 	}
 
-	if err := d.Set("name", in.ObjectMeta.Name); err != nil {
+	if err := d.Set("name", in.Name); err != nil {
 		return fmt.Errorf("set machine config name: %w", err)
 	}
-	if err := d.Set("fleet_namespace", in.ObjectMeta.Namespace); err != nil {
+	if err := d.Set("fleet_namespace", in.Namespace); err != nil {
 		return fmt.Errorf("set machine config fleet_namespace: %w", err)
 	}
 	err := d.Set("annotations", toMapInterface(in.ObjectMeta.Annotations))
@@ -113,7 +113,7 @@ func flattenMachineConfigV2(d *schema.ResourceData, in *MachineConfigV2) error {
 	if err != nil {
 		return err
 	}
-	if err := d.Set("resource_version", in.ObjectMeta.ResourceVersion); err != nil {
+	if err := d.Set("resource_version", in.ResourceVersion); err != nil {
 		return fmt.Errorf("set machine config resource_version: %w", err)
 	}
 	if len(in.ID) > 0 {
