@@ -10,7 +10,7 @@ if [[ ${1:-} == inside ]]; then
   export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0=/src
   cd /cache
   go version
-  [[ $(go env GOVERSION) == go1.27.2 ]] || { echo '::error::Containerfile compiler differs from the reviewed Go 1.27.2'; exit 1; }
+  [[ $(go env GOVERSION) == go1.27.3 ]] || { echo '::error::Containerfile compiler differs from the reviewed Go 1.27.3'; exit 1; }
   go env GOPATH GOTOOLCHAIN GOSUMDB CGO_ENABLED GOEXPERIMENT
   sha256sum /src/Containerfile.dev /src/.golangci.yml /src/go.mod /src/go.sum
   export GOFLAGS='-buildvcs=false'

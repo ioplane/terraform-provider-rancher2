@@ -22,6 +22,10 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Require the bootstrap Read identity-preservation regression in fork CI and reject critical-test evidence without its exact test name and all 25 run/pass events.
 - Keep the fork CI Go workspace and checksum database state in the writable job-local cache while preserving checksum verification.
 
+### Security
+
+- Require the Go 1.27.3 compiler in fork CI for the GO-2026-6809 crypto/x509 fix; run provider checks only for pull requests targeting the CI-control branch, which has no product bootstrap inputs; patched-compiler execution and the full hosted checks remain required.
+
 ## v4.1.0 (March 6, 2024)
 
 FEATURES:
