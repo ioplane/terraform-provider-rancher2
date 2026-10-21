@@ -153,6 +153,8 @@ rancher2:TestFeatureUpdateRecoversAfterReadinessFailures
 rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/update_502_recovers
 rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/update_503_recovers
 rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/update_403_fails
+rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/read_403_preserves_identity
+rancher2:TestFeatureUpdateRecoversAfterReadinessFailures/read_404_confirms_absence
 rancher2:TestGetRegistryByFiltersValidation
 rancher2:TestGetRegistryByFiltersValidation/nil_filters
 rancher2:TestGetRegistryByFiltersValidation/missing_name
@@ -266,7 +268,7 @@ rancher2:TestSettingContextMutations/reset/forbidden`)
         if event.Action == "pass" { passes[key]++ }
     }
     fmt.Printf("critical test input: %d top-level, %d total run events, %d required names\n", top, total, len(required))
-    if total < 194 { return fmt.Errorf("critical test input shrank: %d < 194", total) }
+    if total < 196 { return fmt.Errorf("critical test input shrank: %d < 196", total) }
     for key, count := range runs { if count != 1 || passes[key] != 1 { return fmt.Errorf("test did not run/pass exactly once: %s run=%d pass=%d", key, count, passes[key]) } }
     for key := range passes { if runs[key] != 1 { return fmt.Errorf("pass without run: %s", key) } }
     for _, key := range required { if runs[prefix+key] != 1 || passes[prefix+key] != 1 { return fmt.Errorf("required test missing: %s", key) } }
