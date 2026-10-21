@@ -122,19 +122,21 @@ func (c *Config) settingByIDContext(ctx context.Context, name string) (*manageme
 	if err != nil {
 		return nil, fmt.Errorf("read setting %q: %w", name, err)
 	}
-	defer func() {
-		c.settingMu.Lock()
-		stale := c.settingReady == nil || c.settingReady.client != cli
-		c.settingMu.Unlock()
-		if stale {
-			closeSettingIdle(cli)
-		}
-	}()
+	defer c.closeStaleSettingClient(cli)
 	setting := &managementClient.Setting{}
 	if err := cli.Ops.DoByIDContext(ctx, managementClient.SettingType, name, setting); err != nil {
 		return nil, fmt.Errorf("read setting %q: %w", name, &settingLookupError{cause: err})
 	}
 	return setting, nil
+}
+
+func (c *Config) closeStaleSettingClient(cli *clientbase.APIBaseClient) {
+	c.settingMu.Lock()
+	stale := c.settingReady == nil || c.settingReady.client != cli
+	c.settingMu.Unlock()
+	if stale {
+		closeSettingIdle(cli)
+	}
 }
 
 func initSettingClient(ctx context.Context, opts *clientbase.ClientOpts, seededDefault string) (*clientbase.APIBaseClient, string, error) {

@@ -184,4 +184,4 @@ replace go.opentelemetry.io/otel/sdk => go.opentelemetry.io/otel/sdk v1.47.0
 
 replace go.opentelemetry.io/otel/sdk/metric => go.opentelemetry.io/otel/sdk/metric v1.47.0
 
-replace github.com/rancher/norman => github.com/ioplane/norman v0.0.0-20261021054442-577653ec763b
+replace github.com/rancher/norman => github.com/ioplane/norman v0.0.0-20261021092757-80fce6f4cc96

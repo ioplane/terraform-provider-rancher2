@@ -12,6 +12,7 @@ and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Setting Create, Update and Delete propagate cancellation through lookup, writes, readiness and final refresh without replaying writes; forbidden or interrupted lookups preserve identity, and system settings retain PUT reset behavior.
 - Pin the reviewed Norman context fork for the Setting read pilot while retaining the Rancher 2.15 module line and existing Go floor/toolchain.
 
 - Require the readiness deadline parent and all six exact subcases in fork CI, with at least 57 critical run/pass events.

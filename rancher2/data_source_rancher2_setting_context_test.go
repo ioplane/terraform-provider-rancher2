@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -27,6 +28,108 @@ type settingContextFixture struct {
 	tokens          []string
 	hook            func(http.ResponseWriter, *http.Request) bool
 	single          bool
+}
+
+func TestSettingContextMutations(t *testing.T) {
+	for _, operation := range []string{"create", "update", "delete", "reset"} {
+		for _, phase := range []string{"success", "pre-canceled", "mutation-canceled", "forbidden"} {
+			t.Run(operation+"/"+phase, func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				var written atomic.Bool
+				block := newSettingContextBlock()
+				f := newSettingContextFixture(t, true, func(w http.ResponseWriter, r *http.Request) bool {
+					if r.URL.Path != "/v3/settings/pilot" && r.URL.Path != "/v3/settings" {
+						return false
+					}
+					if r.Method == http.MethodGet {
+						if phase == "forbidden" {
+							http.Error(w, "forbidden", http.StatusForbidden)
+							return true
+						}
+						if (operation == "create" && !written.Load()) || (operation == "delete" && written.Load()) {
+							http.Error(w, "missing", http.StatusNotFound)
+							return true
+						}
+					} else {
+						if phase == "mutation-canceled" {
+							cancel()
+							block.serve(w, r, false, http.StatusOK)
+							return true
+						}
+						method := http.MethodPut
+						if operation == "create" {
+							method = http.MethodPost
+						} else if operation == "delete" {
+							method = http.MethodDelete
+						}
+						if r.Method != method {
+							t.Errorf("mutation method=%s want=%s", r.Method, method)
+						}
+						if method != http.MethodDelete {
+							var payload map[string]interface{}
+							if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+								t.Errorf("mutation body: %v", err)
+							}
+							want := "stable"
+							if operation == "reset" {
+								want = ""
+							}
+							if payload["value"] != want {
+								t.Errorf("mutation value=%v want=%q", payload["value"], want)
+							}
+						}
+						written.Store(true)
+						if method == http.MethodDelete {
+							w.WriteHeader(http.StatusNoContent)
+							return true
+						}
+					}
+					creator, value := "user", "stable"
+					if operation == "reset" {
+						creator = ""
+						if written.Load() {
+							value = ""
+						}
+					}
+					w.Header().Set("Content-Type", "application/json")
+					response := map[string]interface{}{"id": "pilot", "name": "pilot", "value": value, "creatorId": creator, "links": map[string]string{"self": "http://" + r.Host + "/v3/settings/pilot"}}
+					if err := json.NewEncoder(w).Encode(response); err != nil {
+						t.Errorf("response: %v", err)
+					}
+					return true
+				})
+				t.Cleanup(block.unblock)
+				d := schema.TestResourceDataRaw(t, settingFields(), map[string]interface{}{"name": "pilot", "value": "stable"})
+				if operation != "create" {
+					d.SetId("pilot")
+				}
+				if phase == "pre-canceled" {
+					cancel()
+				}
+				resource := resourceRancher2Setting()
+				callback := resource.UpdateWithoutTimeout
+				if operation == "create" {
+					callback = resource.CreateWithoutTimeout
+				} else if operation == "delete" || operation == "reset" {
+					callback = resource.DeleteWithoutTimeout
+				}
+				diags := callback(ctx, d, f.config())
+				gets, mutations := f.counts()
+				wantID := "pilot"
+				if operation == "create" && phase != "success" || (operation == "delete" || operation == "reset") && phase == "success" {
+					wantID = ""
+				}
+				wantMutations := 1
+				if phase == "pre-canceled" || phase == "forbidden" {
+					wantMutations = 0
+				}
+				if diags.HasError() != (phase != "success") || d.Id() != wantID || mutations != wantMutations || phase == "pre-canceled" && gets != 0 {
+					t.Fatalf("diagnostics=%v ID=%q want=%q GET=%d mutations=%d want=%d", diags, d.Id(), wantID, gets, mutations, wantMutations)
+				}
+			})
+		}
+	}
 }
 
 func TestSettingContextManagedReadTimeout(t *testing.T) {
@@ -153,11 +256,11 @@ func newSettingContextFixture(t *testing.T, single bool, hook func(http.Response
 		}
 		f.tokens = append(f.tokens, r.Header.Get("Authorization"))
 		f.mu.Unlock()
-		if r.Method != http.MethodGet {
-			http.Error(w, "mutation rejected", http.StatusMethodNotAllowed)
+		if f.hook != nil && f.hook(w, r) {
 			return
 		}
-		if f.hook != nil && f.hook(w, r) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "mutation rejected", http.StatusMethodNotAllowed)
 			return
 		}
 		f.reply(t, w, r)
@@ -184,7 +287,7 @@ func (f *settingContextFixture) reply(t *testing.T, w http.ResponseWriter, r *ht
 			endpoint = base + "/v3"
 		}
 		w.Header().Set("X-API-Schemas", endpoint)
-		response = map[string]interface{}{"data": []interface{}{map[string]interface{}{"id": "setting", "links": map[string]string{"collection": base + "/v3/settings"}, "resourceMethods": []string{"GET"}}}}
+		response = map[string]interface{}{"data": []interface{}{map[string]interface{}{"id": "setting", "links": map[string]string{"collection": base + "/v3/settings"}, "resourceMethods": []string{"GET", "PUT", "DELETE"}, "collectionMethods": []string{"POST"}}}}
 	case "/v3/settings/k8s-version":
 		response = map[string]string{"id": "k8s-version", "value": "v1.35.0"}
 	case "/v3/settings/pilot":
