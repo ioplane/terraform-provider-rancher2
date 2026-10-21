@@ -59,9 +59,10 @@ func TestSettingContextMutations(t *testing.T) {
 							return true
 						}
 						method := http.MethodPut
-						if operation == "create" {
+						switch operation {
+						case "create":
 							method = http.MethodPost
-						} else if operation == "delete" {
+						case "delete":
 							method = http.MethodDelete
 						}
 						if r.Method != method {
@@ -110,9 +111,10 @@ func TestSettingContextMutations(t *testing.T) {
 				}
 				resource := resourceRancher2Setting()
 				var callback func(context.Context, *schema.ResourceData, interface{}) diag.Diagnostics = resource.UpdateWithoutTimeout
-				if operation == "create" {
+				switch operation {
+				case "create":
 					callback = resource.CreateWithoutTimeout
-				} else if operation == "delete" || operation == "reset" {
+				case "delete", "reset":
 					callback = resource.DeleteWithoutTimeout
 				}
 				diags := callback(ctx, d, f.config())

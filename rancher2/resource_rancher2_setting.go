@@ -37,6 +37,10 @@ func resourceRancher2Setting() *schema.Resource {
 }
 
 func resourceRancher2SettingCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) error {
+	name, ok := d.Get("name").(string)
+	if !ok {
+		return fmt.Errorf("invalid setting name type %T", d.Get("name"))
+	}
 	config, ok := meta.(*Config)
 	if !ok || config == nil {
 		return fmt.Errorf("invalid setting configuration type %T", meta)
@@ -48,7 +52,7 @@ func resourceRancher2SettingCreate(ctx context.Context, d *schema.ResourceData, 
 	defer config.closeStaleSettingClient(client)
 
 	// Settings use their name as ID; an existing setting is updated instead of recreated.
-	exist, err := config.settingByIDContext(ctx, d.Get("name").(string))
+	exist, err := config.settingByIDContext(ctx, name)
 	if err == nil {
 		d.SetId(exist.ID)
 		return resourceRancher2SettingUpdate(ctx, d, meta)
