@@ -198,6 +198,31 @@ rancher2:TestClusterDriverIdentity/delete_500
 rancher2:TestClusterDriverIdentity/refresh_403
 rancher2:TestClusterDriverIdentity/refresh_404
 rancher2:TestClusterDriverIdentity/refresh_500
+rancher2:TestNodeDriverContext
+rancher2:TestNodeDriverContext/create/missing_response_id
+rancher2:TestNodeDriverContext/create/pre_canceled
+rancher2:TestNodeDriverContext/create/readiness_canceled
+rancher2:TestNodeDriverContext/create/request_canceled
+rancher2:TestNodeDriverContext/create/schema_canceled
+rancher2:TestNodeDriverContext/create/success
+rancher2:TestNodeDriverContext/delete/builtin
+rancher2:TestNodeDriverContext/delete/pre_canceled
+rancher2:TestNodeDriverContext/delete/readiness_canceled
+rancher2:TestNodeDriverContext/delete/request_canceled
+rancher2:TestNodeDriverContext/delete/success
+rancher2:TestNodeDriverContext/import/pre_canceled
+rancher2:TestNodeDriverContext/import/request_canceled
+rancher2:TestNodeDriverContext/import/success
+rancher2:TestNodeDriverContext/read/lookup_identity
+rancher2:TestNodeDriverContext/read/pre_canceled
+rancher2:TestNodeDriverContext/read/request_canceled
+rancher2:TestNodeDriverContext/read/success
+rancher2:TestNodeDriverContext/update/lookup_identity
+rancher2:TestNodeDriverContext/update/pre_canceled
+rancher2:TestNodeDriverContext/update/request_canceled
+rancher2:TestNodeDriverContext/update/response_identity
+rancher2:TestNodeDriverContext/update/snapshot
+rancher2:TestNodeDriverContext/update/success
 rancher2:TestNodeDriverIdentity/read_500
 rancher2:TestNodeDriverIdentity/delete_500
 rancher2:TestNodeDriverIdentity/refresh_500
@@ -323,7 +348,7 @@ rancher2:TestSettingContextMutations/reset/forbidden`)
         if event.Action == "pass" { passes[key]++ }
     }
     fmt.Printf("critical test input: %d top-level, %d total run events, %d required names\n", top, total, len(required))
-    if total < 251 { return fmt.Errorf("critical test input shrank: %d < 251", total) }
+    if total < 276 { return fmt.Errorf("critical test input shrank: %d < 276", total) }
     for key, count := range runs { if count != 1 || passes[key] != 1 { return fmt.Errorf("test did not run/pass exactly once: %s run=%d pass=%d", key, count, passes[key]) } }
     for key := range passes { if runs[key] != 1 { return fmt.Errorf("pass without run: %s", key) } }
     for _, key := range required { if runs[prefix+key] != 1 || passes[prefix+key] != 1 { return fmt.Errorf("required test missing: %s", key) } }
@@ -383,7 +408,7 @@ GO
   gate vet go vet ./...
   gate format golangci-lint fmt --diff ./...
   gate lint golangci-lint run --timeout=15m ./...
-  selection='^(TestOriginalRancherCatalogContract|TestCatalogAndHostnameOriginalContract|TestFlattenAppV2|TestExpandChart(Install|Upgrade)(Action)?V2|TestWaitForMachineConfigV2TimeoutPreservesIdentity|TestMachineConfigV2ReadIdentity|TestCatalogContextFactory|TestMachineConfigContextRead|TestMachineConfigContextDelete|TestMachineConfigContextUpdate|TestMachineConfigContextCreate|Test(Expand|Flatten)MachineConfigV2Nutanix|TestNutanixMachineHardware(Plan|Wire|Validation|Boundary)|TestUpdateSecretV2ConflictRefreshesResourceVersion|TestSecretV2JSONWire|TestSDKOwner.*|TestFlattenSecretV2|TestExpandSecretV2|TestBootstrapReadPreservesIdentity|TestFeatureUpdateRecoversAfterReadinessFailures|TestProvisioningStateWriteErrors|Test(CloudCredential|ClusterDriver)Identity|Test(Flatten|Expand)(NodeDriver|ClusterDriver|Feature)|TestNodeDriverIdentity|TestGetRegistryByFiltersValidation|TestProviderRejectsInvalidCACerts|TestRancherReadinessDeadline|TestSettingContextCancellationPhases|TestSettingContextDefaultRetry|TestSettingContextErrorBodyCauses|TestSettingContextFailures|TestSettingContextGeneration|TestSettingContextLegacyMutex|TestSettingContextOwnerWaiters|TestSettingContextPriorState|TestSettingContextSDKPreCanceled|TestSettingContextSDKState|TestSettingContextTimeouts|TestSettingContextWarmSnapshot|TestSettingContextRetryErrorCauses|TestSettingContextImport|TestSettingContextManagedRead|TestSettingContextManagedReadTimeout|TestSettingContextMutations)$'
+  selection='^(TestOriginalRancherCatalogContract|TestCatalogAndHostnameOriginalContract|TestFlattenAppV2|TestExpandChart(Install|Upgrade)(Action)?V2|TestWaitForMachineConfigV2TimeoutPreservesIdentity|TestMachineConfigV2ReadIdentity|TestCatalogContextFactory|TestMachineConfigContextRead|TestMachineConfigContextDelete|TestMachineConfigContextUpdate|TestMachineConfigContextCreate|Test(Expand|Flatten)MachineConfigV2Nutanix|TestNutanixMachineHardware(Plan|Wire|Validation|Boundary)|TestUpdateSecretV2ConflictRefreshesResourceVersion|TestSecretV2JSONWire|TestSDKOwner.*|TestFlattenSecretV2|TestExpandSecretV2|TestBootstrapReadPreservesIdentity|TestFeatureUpdateRecoversAfterReadinessFailures|TestProvisioningStateWriteErrors|Test(CloudCredential|ClusterDriver)Identity|Test(Flatten|Expand)(NodeDriver|ClusterDriver|Feature)|TestNodeDriver(Context|Identity)|TestGetRegistryByFiltersValidation|TestProviderRejectsInvalidCACerts|TestRancherReadinessDeadline|TestSettingContextCancellationPhases|TestSettingContextDefaultRetry|TestSettingContextErrorBodyCauses|TestSettingContextFailures|TestSettingContextGeneration|TestSettingContextLegacyMutex|TestSettingContextOwnerWaiters|TestSettingContextPriorState|TestSettingContextSDKPreCanceled|TestSettingContextSDKState|TestSettingContextTimeouts|TestSettingContextWarmSnapshot|TestSettingContextRetryErrorCauses|TestSettingContextImport|TestSettingContextManagedRead|TestSettingContextManagedReadTimeout|TestSettingContextMutations)$'
   gate critical-tests go test -json -race -shuffle=on -covermode=atomic -count=1 -run "$selection" ./internal/ranchercatalog ./rancher2
   gate critical-input /cache/check tests /cache/evidence/critical-tests.log
   gate vulnerability-json govulncheck -db=https://vuln.go.dev -scan=symbol -json ./...
