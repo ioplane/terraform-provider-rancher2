@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 )
@@ -25,7 +26,9 @@ func TestRancherReadinessDeadline(t *testing.T) {
 					if _, err := io.WriteString(w, "po"); err != nil {
 						t.Errorf("write partial body: %v", err)
 					}
-					w.(http.Flusher).Flush()
+					if err := http.NewResponseController(w).Flush(); err != nil {
+						t.Errorf("flush partial body: %v", err)
+					}
 				}
 				close(entered)
 				select {
@@ -60,6 +63,12 @@ func TestRancherReadinessDeadline(t *testing.T) {
 			case err := <-result:
 				if !errors.Is(err, context.DeadlineExceeded) {
 					t.Errorf("readiness error = %v; want wrapped context.DeadlineExceeded", err)
+				}
+				if stage == "headers" {
+					var probeErr *url.Error
+					if !errors.As(err, &probeErr) {
+						t.Errorf("readiness error = %v; want retained *url.Error", err)
+					}
 				}
 			case <-time.After(2 * time.Second):
 				t.Error("readiness exceeded bounded request deadline while response was blocked")

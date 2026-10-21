@@ -306,7 +306,7 @@ func doGet(ctx context.Context, url, username, password, token, cacert string, i
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Doing get: %w", err)
+		return nil, fmt.Errorf("doing get: %w", err)
 	}
 	if len(token) > 0 {
 		req.Header.Add("Authorization", "Bearer "+token)
@@ -316,7 +316,7 @@ func doGet(ctx context.Context, url, username, password, token, cacert string, i
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Doing get: %w", err)
+		return nil, fmt.Errorf("doing get: %w", err)
 	}
 	defer resp.Body.Close()
 

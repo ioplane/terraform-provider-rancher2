@@ -98,9 +98,9 @@ func (c *Config) isRancherReady() error {
 		case <-time.After(rancher2RetriesWait * time.Second):
 		case <-ctx.Done():
 			if err != nil {
-				return fmt.Errorf("Rancher is not ready: %w (last error: %w)", ctx.Err(), err)
+				return fmt.Errorf("rancher is not ready: %w (last error: %w)", ctx.Err(), err)
 			}
-			return fmt.Errorf("Rancher is not ready: %w", ctx.Err())
+			return fmt.Errorf("rancher is not ready: %w", ctx.Err())
 		}
 	}
 }
