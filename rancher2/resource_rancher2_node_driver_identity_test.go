@@ -2,6 +2,7 @@ package rancher2
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/rancher/norman/clientbase"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
@@ -29,8 +31,18 @@ func TestClusterDriverIdentity(t *testing.T) {
 func testProvisioningLookupIdentity(t *testing.T, kind string) {
 	t.Helper()
 	fields := nodeDriverFields
-	read, remove, refresh := resourceRancher2NodeDriverRead, resourceRancher2NodeDriverDelete, nodeDriverStateRefreshFunc
+	read, remove, refresh := resourceRancher2CloudCredentialRead, resourceRancher2CloudCredentialDelete, cloudCredentialStateRefreshFunc
 	switch kind {
+	case "nodeDriver":
+		read = func(d *schema.ResourceData, meta interface{}) error {
+			return resourceRancher2NodeDriverRead(t.Context(), d, meta)
+		}
+		remove = func(d *schema.ResourceData, meta interface{}) error {
+			return resourceRancher2NodeDriverDelete(t.Context(), d, meta)
+		}
+		refresh = func(client *managementClient.Client, id string) retry.StateRefreshFunc {
+			return nodeDriverStateRefreshFunc(t.Context(), &client.APIBaseClient, id)
+		}
 	case "cloudCredential":
 		fields = cloudCredentialFields
 		read, remove, refresh = resourceRancher2CloudCredentialRead, resourceRancher2CloudCredentialDelete, cloudCredentialStateRefreshFunc
@@ -74,6 +86,7 @@ func testProvisioningLookupIdentity(t *testing.T, kind string) {
 					t.Fatalf("initialize fixture client: %v", err)
 				}
 				config := &Config{Client: Client{Management: client}}
+				config.contextReady = map[string]*contextClientState{"": {client: &client.APIBaseClient}}
 				d := schema.TestResourceDataRaw(t, fields(), map[string]interface{}{"name": id})
 				d.SetId(id)
 				switch action {
@@ -92,7 +105,8 @@ func testProvisioningLookupIdentity(t *testing.T, kind string) {
 					if err == nil || d.Id() != id || d.State() == nil || d.State().ID != id {
 						t.Fatalf("HTTP %d must retain identity and return error: ID=%q error=%v", status, d.Id(), err)
 					}
-					if status == http.StatusForbidden && !IsForbidden(err) || status == http.StatusInternalServerError && !IsServerError(err) {
+					var apiError *clientbase.APIError
+					if !errors.As(err, &apiError) || apiError.StatusCode != status {
 						t.Fatalf("lookup error lost HTTP %d: %v", status, err)
 					}
 				} else if err != nil || action != "refresh" && d.Id() != "" {

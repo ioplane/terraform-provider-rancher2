@@ -1,23 +1,34 @@
 package rancher2
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/rancher/norman/clientbase"
 	managementClient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 )
 
 func resourceRancher2NodeDriver() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceRancher2NodeDriverCreate,
-		Read:   resourceRancher2NodeDriverRead,
-		Update: resourceRancher2NodeDriverUpdate,
-		Delete: resourceRancher2NodeDriverDelete,
+		CreateContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2NodeDriverCreate(ctx, d, meta))
+		},
+		ReadContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2NodeDriverRead(ctx, d, meta))
+		},
+		UpdateContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2NodeDriverUpdate(ctx, d, meta))
+		},
+		DeleteContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+			return diag.FromErr(resourceRancher2NodeDriverDelete(ctx, d, meta))
+		},
 		Importer: &schema.ResourceImporter{
-			State: resourceRancher2NodeDriverImport,
+			StateContext: resourceRancher2NodeDriverImport,
 		},
 		Schema: nodeDriverFields(),
 		Timeouts: &schema.ResourceTimeout{
@@ -28,73 +39,82 @@ func resourceRancher2NodeDriver() *schema.Resource {
 	}
 }
 
-func resourceRancher2NodeDriverCreate(d *schema.ResourceData, meta interface{}) error {
+func resourceRancher2NodeDriverCreate(ctx context.Context, d *schema.ResourceData, meta any) error {
 	nodeDriver := expandNodeDriver(d)
 
 	log.Printf("[INFO] Creating Node Driver %s", nodeDriver.Name)
 
-	client, err := meta.(*Config).ManagementClient()
+	config := meta.(*Config)
+	client, err := config.apiClientContext(ctx, "")
 	if err != nil {
 		return err
 	}
 
-	newNodeDriver, err := client.NodeDriver.Create(nodeDriver)
+	defer config.closeStaleContextClient("", client)
+	newNodeDriver := &managementClient.NodeDriver{}
+	err = client.Ops.DoCreateContext(ctx, managementClient.NodeDriverType, nodeDriver, newNodeDriver)
+	if newNodeDriver.ID != "" {
+		d.SetId(newNodeDriver.ID)
+	}
 	if err != nil {
 		return err
 	}
-
-	d.SetId(newNodeDriver.ID)
+	if newNodeDriver.ID == "" {
+		return fmt.Errorf("created node driver response has no ID; reconcile the server before retrying")
+	}
 
 	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"downloading", "activating"},
 		Target:     []string{"active", "inactive"},
-		Refresh:    nodeDriverStateRefreshFunc(client, newNodeDriver.ID),
+		Refresh:    nodeDriverStateRefreshFunc(ctx, client, newNodeDriver.ID),
 		Timeout:    d.Timeout(schema.TimeoutCreate),
 		Delay:      1 * time.Second,
 		MinTimeout: 3 * time.Second,
 	}
-	_, waitErr := stateConf.WaitForState()
+	_, waitErr := stateConf.WaitForStateContext(ctx)
 	if waitErr != nil {
-		return fmt.Errorf("[ERROR] waiting for node driver (%s) to be created: %s", newNodeDriver.ID, waitErr)
+		return fmt.Errorf("[ERROR] waiting for node driver (%s) to be created: %w", newNodeDriver.ID, waitErr)
 	}
 
-	return resourceRancher2NodeDriverRead(d, meta)
+	return readNodeDriverContext(ctx, d, client)
 }
 
-func resourceRancher2NodeDriverRead(d *schema.ResourceData, meta interface{}) error {
+func resourceRancher2NodeDriverRead(ctx context.Context, d *schema.ResourceData, meta any) error {
 	log.Printf("[INFO] Refreshing Node Driver ID %s", d.Id())
-	client, err := meta.(*Config).ManagementClient()
+	config := meta.(*Config)
+	client, err := config.apiClientContext(ctx, "")
 	if err != nil {
 		return err
 	}
 
-	return retry.Retry(d.Timeout(schema.TimeoutRead), func() *retry.RetryError {
-		nodeDriver, err := client.NodeDriver.ByID(d.Id())
-		if err != nil {
-			if IsNotFound(err) {
-				log.Printf("[INFO] Node Driver ID %s not found.", d.Id())
-				d.SetId("")
-				return nil
-			}
-			return retry.NonRetryableError(err)
-		}
-
-		if err = flattenNodeDriver(d, nodeDriver); err != nil {
-			return retry.NonRetryableError(err)
-		}
-
-		return nil
-	})
+	defer config.closeStaleContextClient("", client)
+	return readNodeDriverContext(ctx, d, client)
 }
 
-func resourceRancher2NodeDriverUpdate(d *schema.ResourceData, meta interface{}) error {
+func readNodeDriverContext(ctx context.Context, d *schema.ResourceData, client *clientbase.APIBaseClient) error {
+	nodeDriver, err := nodeDriverByIDContext(ctx, client, d.Id())
+	if err != nil {
+		if resourceLookupNotFound(ctx, err) {
+			log.Printf("[INFO] Node Driver ID %s not found.", d.Id())
+			d.SetId("")
+			return nil
+		}
+		return err
+	}
+	return flattenNodeDriver(d, nodeDriver)
+}
+
+func resourceRancher2NodeDriverUpdate(ctx context.Context, d *schema.ResourceData, meta any) error {
 	log.Printf("[INFO] Updating Node Driver ID %s", d.Id())
-	client, err := meta.(*Config).ManagementClient()
+	id := d.Id()
+	config := meta.(*Config)
+	client, err := config.apiClientContext(ctx, "")
 	if err != nil {
 		return err
 	}
 
-	nodeDriver, err := client.NodeDriver.ByID(d.Id())
+	defer config.closeStaleContextClient("", client)
+	nodeDriver, err := nodeDriverByIDContext(ctx, client, id)
 	if err != nil {
 		return err
 	}
@@ -113,39 +133,45 @@ func resourceRancher2NodeDriverUpdate(d *schema.ResourceData, meta interface{}) 
 		"labels":           toMapString(d.Get("labels").(map[string]interface{})),
 	}
 
-	newNodeDriver, err := client.NodeDriver.Update(nodeDriver, update)
+	newNodeDriver := &managementClient.NodeDriver{}
+	err = client.Ops.DoUpdateContext(ctx, managementClient.NodeDriverType, &nodeDriver.Resource, update, newNodeDriver)
 	if err != nil {
 		return err
+	}
+	if newNodeDriver.ID != id {
+		return fmt.Errorf("updated node driver identity %q does not match %q", newNodeDriver.ID, id)
 	}
 
 	stateConf := &retry.StateChangeConf{
 		Pending:    []string{"active", "inactive", "downloading", "activating", "deactivating"},
 		Target:     []string{"active", "inactive"},
-		Refresh:    nodeDriverStateRefreshFunc(client, newNodeDriver.ID),
+		Refresh:    nodeDriverStateRefreshFunc(ctx, client, id),
 		Timeout:    d.Timeout(schema.TimeoutUpdate),
 		Delay:      1 * time.Second,
 		MinTimeout: 3 * time.Second,
 	}
-	_, waitErr := stateConf.WaitForState()
+	_, waitErr := stateConf.WaitForStateContext(ctx)
 	if waitErr != nil {
 		return fmt.Errorf(
-			"[ERROR] waiting for node driver (%s) to be updated: %s", newNodeDriver.ID, waitErr)
+			"[ERROR] waiting for node driver (%s) to be updated: %w", id, waitErr)
 	}
 
-	return resourceRancher2NodeDriverRead(d, meta)
+	return readNodeDriverContext(ctx, d, client)
 }
 
-func resourceRancher2NodeDriverDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceRancher2NodeDriverDelete(ctx context.Context, d *schema.ResourceData, meta any) error {
 	log.Printf("[INFO] Deleting Node Driver ID %s", d.Id())
 	id := d.Id()
-	client, err := meta.(*Config).ManagementClient()
+	config := meta.(*Config)
+	client, err := config.apiClientContext(ctx, "")
 	if err != nil {
 		return err
 	}
 
-	nodeDriver, err := client.NodeDriver.ByID(id)
+	defer config.closeStaleContextClient("", client)
+	nodeDriver, err := nodeDriverByIDContext(ctx, client, id)
 	if err != nil {
-		if IsNotFound(err) {
+		if resourceLookupNotFound(ctx, err) {
 			log.Printf("[INFO] Node Driver ID %s not found.", id)
 			d.SetId("")
 			return nil
@@ -154,9 +180,9 @@ func resourceRancher2NodeDriverDelete(d *schema.ResourceData, meta interface{}) 
 	}
 
 	if !nodeDriver.Builtin {
-		err = client.NodeDriver.Delete(nodeDriver)
+		err = client.Ops.DoResourceDeleteContext(ctx, managementClient.NodeDriverType, &nodeDriver.Resource)
 		if err != nil {
-			return fmt.Errorf("Error removing Node Driver: %s", err)
+			return fmt.Errorf("remove node driver: %w", err)
 		}
 
 		log.Printf("[DEBUG] Waiting for node driver (%s) to be removed", id)
@@ -164,29 +190,32 @@ func resourceRancher2NodeDriverDelete(d *schema.ResourceData, meta interface{}) 
 		stateConf := &retry.StateChangeConf{
 			Pending:    []string{"removing"},
 			Target:     []string{"removed"},
-			Refresh:    nodeDriverStateRefreshFunc(client, id),
+			Refresh:    nodeDriverStateRefreshFunc(ctx, client, id),
 			Timeout:    d.Timeout(schema.TimeoutDelete),
 			Delay:      1 * time.Second,
 			MinTimeout: 3 * time.Second,
 		}
 
-		_, waitErr := stateConf.WaitForState()
+		_, waitErr := stateConf.WaitForStateContext(ctx)
 		if waitErr != nil {
 			return fmt.Errorf(
-				"[ERROR] waiting for node driver (%s) to be removed: %s", id, waitErr)
+				"[ERROR] waiting for node driver (%s) to be removed: %w", id, waitErr)
 		}
 	}
 
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	d.SetId("")
 	return nil
 }
 
 // nodeDriverStateRefreshFunc returns a resource.StateRefreshFunc, used to watch a Rancher NodeDriver.
-func nodeDriverStateRefreshFunc(client *managementClient.Client, nodeDriverID string) retry.StateRefreshFunc {
+func nodeDriverStateRefreshFunc(ctx context.Context, client *clientbase.APIBaseClient, nodeDriverID string) retry.StateRefreshFunc {
 	return func() (interface{}, string, error) {
-		obj, err := client.NodeDriver.ByID(nodeDriverID)
+		obj, err := nodeDriverByIDContext(ctx, client, nodeDriverID)
 		if err != nil {
-			if IsNotFound(err) {
+			if resourceLookupNotFound(ctx, err) {
 				return obj, "removed", nil
 			}
 			return nil, "", err
@@ -194,4 +223,21 @@ func nodeDriverStateRefreshFunc(client *managementClient.Client, nodeDriverID st
 
 		return obj, obj.State, nil
 	}
+}
+
+func nodeDriverByIDContext(ctx context.Context, client *clientbase.APIBaseClient, id string) (*managementClient.NodeDriver, error) {
+	if id == "" {
+		return nil, fmt.Errorf("node driver lookup requires an ID")
+	}
+	nodeDriver := &managementClient.NodeDriver{}
+	if err := client.Ops.DoByIDContext(ctx, managementClient.NodeDriverType, id, nodeDriver); err != nil {
+		return nil, fmt.Errorf("read node driver %q: %w", id, &resourceLookupError{cause: err})
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if nodeDriver.ID != id {
+		return nil, fmt.Errorf("node driver lookup identity %q does not match %q", nodeDriver.ID, id)
+	}
+	return nodeDriver, nil
 }
